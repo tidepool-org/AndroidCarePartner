@@ -1,0 +1,3 @@
+[submodule "TidepoolKotlinAPI"]
+	path = TidepoolKotlinAPI
+	url = git@github.com:tidepool-org/TidepoolKotlinAPI.git
