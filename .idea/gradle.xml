@@ -4,11 +4,26 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
+        <compositeConfiguration>
+          <compositeBuild compositeDefinitionSource="SCRIPT">
+            <builds>
+              <build path="$PROJECT_DIR$/TidepoolSDK" name="TidepoolSDK">
+                <projects>
+                  <project path="$PROJECT_DIR$/TidepoolSDK" />
+                  <project path="$PROJECT_DIR$/TidepoolSDK/lib" />
+                </projects>
+              </build>
+            </builds>
+          </compositeBuild>
+        </compositeConfiguration>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
-        <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
+        <option name="gradleHome" value="$PROJECT_DIR$/../../../../../Gradle/gradle-8.4" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/TidepoolSDK" />
+            <option value="$PROJECT_DIR$/TidepoolSDK/lib" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>

@@ -22,3 +22,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "Loop Shadow"
 include(":app")
+includeBuild("TidepoolKotlinAPI") {
+    dependencySubstitution {
+        substitute(module("org.tidepool.api:TidepoolKotlinAPI")).using(project(":lib"))
+    }
+}

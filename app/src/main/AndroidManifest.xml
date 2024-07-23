@@ -23,6 +23,11 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".FollowActivity"
+            android:exported="true"
+            android:theme="@style/Theme.LoopFollow">
+        </activity>
+        <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
             tools:node="replace"
             android:exported="true">
@@ -30,7 +35,9 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="appscheme" android:host="org.tidepool.loopfollow"/>
+                <data
+                    android:scheme="org.tidepool.carepartner"
+                    android:host="tidepool_service_callback"/>
             </intent-filter>
         </activity>
     </application>

@@ -9,11 +9,10 @@ android {
 
     defaultConfig {
         applicationId = "org.tidepool.carepartner"
-        minSdk = 25
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-        manifestPlaceholders["appAuthRedirectScheme"] = "org.tidepool.carepartner"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -52,8 +51,11 @@ android {
 
 dependencies {
     implementation(libs.appauth)
+    implementation("org.tidepool.api:TidepoolKotlinAPI")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.tidepoolsdkjava)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
