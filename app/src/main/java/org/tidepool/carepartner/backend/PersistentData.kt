@@ -1,6 +1,8 @@
 package org.tidepool.carepartner.backend
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -8,7 +10,10 @@ import net.openid.appauth.AuthState
 import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.EndSessionRequest
 import net.openid.appauth.ResponseTypeValues
+import org.tidepool.carepartner.FollowActivity
+import org.tidepool.carepartner.MainActivity
 import org.tidepool.sdk.Environment
 import org.tidepool.sdk.Environments
 import kotlin.coroutines.resume
@@ -17,6 +22,7 @@ import kotlin.coroutines.suspendCoroutine
 
 class PersistentData {
     companion object {
+        private val redirectUri = Uri.parse("org.tidepool.carepartner://tidepool_service_callback")
         @Volatile
         private var _authState = AuthState()
         val authState by this::_authState
@@ -38,6 +44,20 @@ class PersistentData {
                 }
                 _authState = AuthState(serviceConfiguration!!)
             }
+        }
+
+        fun Context.logout() {
+            val authService = AuthorizationService(this)
+            val endSessionRequest = EndSessionRequest.Builder(_authState.authorizationServiceConfiguration ?: throw NullPointerException("No configuration"))
+                .setIdTokenHint(_authState.idToken)
+                .setPostLogoutRedirectUri(redirectUri)
+                .build()
+
+            authService.performEndSessionRequest(
+                endSessionRequest,
+                PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
+                PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+            )
         }
 
         private suspend fun Context.exchangeAuthCode() = suspendCoroutine { continuation ->
@@ -85,7 +105,7 @@ class PersistentData {
                 _authState.authorizationServiceConfiguration ?: throw NullPointerException("No Configuration"),
                 "tidepool-carepartner-android",
                 ResponseTypeValues.CODE,
-                Uri.parse("org.tidepool.carepartner://tidepool_service_callback")
+                redirectUri
             ).apply {
                 setScope("openid email")
                 setLoginHint("wavedashing@madeline.celeste.com")
