@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AuthState
 import net.openid.appauth.AuthorizationRequest
@@ -14,20 +15,70 @@ import net.openid.appauth.EndSessionRequest
 import net.openid.appauth.ResponseTypeValues
 import org.tidepool.carepartner.FollowActivity
 import org.tidepool.carepartner.MainActivity
+import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.Environment
 import org.tidepool.sdk.Environments
+import java.time.Instant
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class PersistentData {
+    private class DataHolder {
+        var authState: AuthState = AuthState()
+        var lastEmail: String? = null
+        var environment: Environment = Environments.Qa1
+    }
     companion object {
         private val redirectUri = Uri.parse("org.tidepool.carepartner://tidepool_service_callback")
-        @Volatile
-        private var _authState = AuthState()
+        private const val FILENAME = "persistent-data"
+        private val data = DataHolder()
+        private var _authState by data::authState
         val authState by this::_authState
-        @Volatile
-        var environment: Environment = Environments.Qa1
+        var environment by data::environment
+        private var _lastEmail by data::lastEmail
+        val lastEmail by this::_lastEmail
+        
+        private val lock = ReentrantLock()
+        
+        private val gson by lazy {
+            GsonBuilder().apply {
+                registerTypeAdapter(Uri::class.java, UriDeserializer())
+                registerTypeAdapterFactory(EnvironmentTypeAdapter())
+            }.create()
+        }
+        
+        fun Context.readFromDisk() {
+            Log.v(TAG, "Waiting for lock...")
+            lock.withLock {
+                if (fileList().contains(FILENAME)) {
+                    Log.v(TAG, "Reading from disk...")
+                    openFileInput(FILENAME).reader().use { reader ->
+                        val tmpData = gson.fromJson(reader, DataHolder::class.java)
+                        data.lastEmail = tmpData.lastEmail
+                        data.authState = tmpData.authState
+                        data.environment = tmpData.environment
+                    }
+                }
+            }
+            Log.v(TAG, "Done with lock")
+        }
+        
+        fun Context.writeToDisk() {
+            Log.v(TAG, "Waiting for lock...")
+            lock.withLock {
+                Log.v(TAG, "Writing to file...")
+                
+                openFileOutput(FILENAME, Context.MODE_PRIVATE).writer().use { writer ->
+                    Log.v(TAG, "Starting Write...")
+                    gson.toJson(data, writer)
+                    Log.v(TAG, "Ending Write...")
+                }
+            }
+            Log.v(TAG, "Done with lock")
+        }
 
         private const val TAG = "PersistentData"
 
@@ -47,6 +98,8 @@ class PersistentData {
         }
 
         fun Context.logout() {
+            Log.v(TAG, "logout...")
+            data.lastEmail = null
             val authService = AuthorizationService(this)
             val endSessionRequest = EndSessionRequest.Builder(_authState.authorizationServiceConfiguration ?: throw NullPointerException("No configuration"))
                 .setIdTokenHint(_authState.idToken)
@@ -58,6 +111,8 @@ class PersistentData {
                 PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
                 PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
             )
+            _authState = AuthState()
+            writeToDisk()
         }
 
         private suspend fun Context.exchangeAuthCode() = suspendCoroutine { continuation ->
@@ -82,6 +137,11 @@ class PersistentData {
                     }
                 }
             }
+        }
+        
+        suspend fun Context.saveEmail() {
+            _lastEmail = CommunicationHelper(environment).users.getCurrentUserInfo(getAccessToken()).username
+            Log.v(TAG, "lastEmail: $_lastEmail")
         }
 
         suspend fun Context.getIdToken(): String {
@@ -108,9 +168,12 @@ class PersistentData {
                 redirectUri
             ).apply {
                 setScope("openid email")
-                setLoginHint("wavedashing@madeline.celeste.com")
+                setLoginHint(_lastEmail ?: "wavedashing@madeline.celeste.com")
                 //setLoginHint("jdoe@user.example.com")
             }
         }
+        
+        val AuthState.accessTokenExpiration: Instant?
+            get() = accessTokenExpirationTime?.let { Instant.ofEpochMilli(it) }
     }
 }

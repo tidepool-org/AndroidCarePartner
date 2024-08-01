@@ -31,6 +31,7 @@ import net.openid.appauth.AuthorizationService
 import org.tidepool.carepartner.backend.DataUpdater
 import org.tidepool.carepartner.backend.PersistentData.Companion.authState
 import org.tidepool.carepartner.backend.PersistentData.Companion.logout
+import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
 import org.tidepool.carepartner.backend.PillData
 import org.tidepool.carepartner.ui.theme.*
 import org.tidepool.sdk.model.confirmations.Confirmation
@@ -73,6 +74,7 @@ class FollowActivity : ComponentActivity() {
                 App(modifier = Modifier.fillMaxSize())
             }
         }
+        
     }
     
     @Composable

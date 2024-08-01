@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
+import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
+import org.tidepool.carepartner.backend.PersistentData.Companion.writeToDisk
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.requests.Data.CommaSeparatedArray
 import org.tidepool.sdk.model.BloodGlucose
@@ -37,6 +39,8 @@ class DataUpdater(
     private val context: Context,
 ) : Runnable {
     
+    private var savedEmail = false
+    
     override fun run(): Unit = runBlocking {
         Log.v(TAG, "Starting flow...")
         getIdFlow().map { (id, name) -> id to getData(id, name) }
@@ -47,6 +51,11 @@ class DataUpdater(
             }
         Log.v(TAG, "Flow ended!")
         updateInvitations()
+        if (!savedEmail) {
+            savedEmail = true
+            context.saveEmail()
+        }
+        context.writeToDisk()
     }
     
     suspend fun updateInvitations() {
