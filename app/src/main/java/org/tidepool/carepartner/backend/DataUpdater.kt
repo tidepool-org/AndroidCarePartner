@@ -11,19 +11,23 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
 import org.tidepool.sdk.CommunicationHelper
+import org.tidepool.sdk.requests.Data.CommaSeparatedArray
 import org.tidepool.sdk.model.BloodGlucose
 import org.tidepool.sdk.model.confirmations.Confirmation
 import org.tidepool.sdk.model.data.BasalAutomatedData
 import org.tidepool.sdk.model.data.BasalAutomatedData.DeliveryType
 import org.tidepool.sdk.model.data.BaseData
+import org.tidepool.sdk.model.data.BaseData.DataType.*
 import org.tidepool.sdk.model.data.ContinuousGlucoseData
 import org.tidepool.sdk.model.data.DosingDecisionData
 import org.tidepool.sdk.model.data.DosingDecisionData.CarbsOnBoard
 import org.tidepool.sdk.model.data.DosingDecisionData.InsulinOnBoard
 import org.tidepool.sdk.model.metadata.users.TrustUser
 import org.tidepool.sdk.model.metadata.users.TrustorUser
+import org.tidepool.sdk.requests.pendingCareTeamInvitations
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import kotlin.time.measureTime
 
 private const val TAG: String = "DataUpdater"
 
@@ -35,16 +39,26 @@ class DataUpdater(
     
     override fun run(): Unit = runBlocking {
         Log.v(TAG, "Starting flow...")
-        getIdFlow(context).map { (id, name) -> id to getData(id, name, context) }
+        getIdFlow().map { (id, name) -> id to getData(id, name) }
             .collect { (id, data) ->
                 val mutable = output.value.toMutableMap()
                 mutable[id] = data
                 output.value = mutable.toMap()
             }
         Log.v(TAG, "Flow ended!")
+        updateInvitations()
     }
     
-    private fun getIdFlow(context: Context): Flow<Pair<String, String?>> = flow {
+    suspend fun updateInvitations() {
+        invitations.value = getInvitations()
+    }
+    
+    private suspend fun getInvitations(): Array<Confirmation> {
+        val userId = communicationHelper.users.getCurrentUserInfo(context.getAccessToken()).userid
+        return communicationHelper.confirmations.pendingCareTeamInvitations(context.getAccessToken(), userId)
+    }
+    
+    private fun getIdFlow(): Flow<Pair<String, String?>> = flow {
         val userId = communicationHelper.users.getCurrentUserInfo(context.getAccessToken()).userid
         Log.v(TAG, "Listing users...")
         val trustUsers = communicationHelper.metadata.listUsers(context.getAccessToken(), userId)
@@ -61,54 +75,42 @@ class DataUpdater(
         )
     }
     
-    private suspend fun getGlucose(id: String, context: Context): Pair<Double?, Double?> {
-        val startDate = Instant.now().minus(1, ChronoUnit.DAYS)
-        val result = communicationHelper.data.getDataForUser(
-            context.getAccessToken(),
-            userId = id,
-            type = BaseData.DataType.cbg,
-            startDate = startDate
-        )
-        Log.v(TAG, "getData result Array Length: ${result.size}")
+    private fun getGlucose(result: Array<BaseData>): Triple<Double?, Double?, Instant?> {
         val dataArr = result.filterIsInstance<ContinuousGlucoseData>().sortedByDescending { value ->
             value.time ?: Instant.MIN
         }
         
         val data = dataArr.getOrNull(0)
         val lastData = dataArr.getOrNull(1)
-        val value = data?.value
-        val lastValue = lastData?.value
         
-        val mgdl = if (value != null) {
-            data.units?.convert(value, BloodGlucose.Units.milligramsPerDeciliter) ?: value
-        } else null
-        
-        val lastMgdl = if (lastValue != null) {
-            lastData.units?.convert(lastValue, BloodGlucose.Units.milligramsPerDeciliter)
-        } else null
-        
-        val diff = if (mgdl != null && lastMgdl != null) {
-            mgdl - lastMgdl
-        } else {
-            null
+        val mgdl = data?.let { glucoseData ->
+            glucoseData.value?.let {
+                glucoseData.units?.convert(it, BloodGlucose.Units.milligramsPerDeciliter) ?: it
+            }
         }
-        return mgdl to diff
+        
+        val lastMgdl = lastData?.let { glucoseData ->
+            glucoseData.value?.let {
+                glucoseData.units?.convert(it, BloodGlucose.Units.milligramsPerDeciliter) ?: it
+            }
+        }
+        
+        val diff = mgdl?.let { curr ->
+            lastMgdl?.let { last ->
+                curr - last
+            }
+        }
+        
+        return Triple(mgdl, diff, data?.time)
     }
     
-    private suspend fun getBasalResult(id: String, context: Context): Double? {
-        val startDate = Instant.now().minus(1, ChronoUnit.DAYS)
-        val basalResult = communicationHelper.data.getDataForUser(
-            context.getAccessToken(),
-            userId = id,
-            type = BaseData.DataType.basal,
-            startDate = startDate
-        )
-        val basalInfo = basalResult.filterIsInstance<BasalAutomatedData>()
+    private fun getBasalResult(result: Array<BaseData>): Double? {
+        val basalInfo = result.filterIsInstance<BasalAutomatedData>()
             .maxByOrNull { it.time ?: Instant.MIN }
-        val lastAutomated = basalResult.filterIsInstance<BasalAutomatedData>()
+        val lastAutomated = result.filterIsInstance<BasalAutomatedData>()
             .filter { it.deliveryType == DeliveryType.automated }
             .maxByOrNull { it.time ?: Instant.MIN }
-        val lastScheduled = basalResult.filterIsInstance<BasalAutomatedData>()
+        val lastScheduled = result.filterIsInstance<BasalAutomatedData>()
             .filter { it.deliveryType == DeliveryType.scheduled }
             .maxByOrNull { it.time ?: Instant.MIN }
         Log.v(TAG, "Basal Data: $basalInfo")
@@ -123,37 +125,44 @@ class DataUpdater(
         return basalInfo?.rate
     }
     
-    private suspend fun getDosingData(
-        id: String,
-        context: Context,
-    ): Pair<CarbsOnBoard?, InsulinOnBoard?> {
-        val startDate = Instant.now().minus(1, ChronoUnit.DAYS)
-        val dosingResult = communicationHelper.data.getDataForUser(
-            context.getAccessToken(),
-            userId = id,
-            type = BaseData.DataType.dosingDecision,
-            startDate = startDate
-        )
-        return dosingResult.filterIsInstance<DosingDecisionData>()
+    private fun getDosingData(result: Array<BaseData>): Pair<CarbsOnBoard?, InsulinOnBoard?> {
+        return result.filterIsInstance<DosingDecisionData>()
             .maxByOrNull { it.time ?: Instant.MIN }?.let {
                 Pair(it.carbsOnBoard, it.insulinOnBoard)
             } ?: Pair(null, null)
     }
     
-    private suspend fun getData(id: String, name: String?, context: Context): PillData =
-        coroutineScope {
-            val glucoseData = async { getGlucose(id, context) }
-            val basalData = async { getBasalResult(id, context) }
-            val dosingData = async { getDosingData(id, context) }
-            val (mgdl, diff) = glucoseData.await()
-            val (activeCarbs, activeInsulin) = dosingData.await()
-            return@coroutineScope PillData(
-                mgdl,
-                diff,
-                name ?: "User",
-                basalData.await(),
-                activeCarbs,
-                activeInsulin
-            )
+    private suspend fun getData(id: String, name: String?): PillData = coroutineScope {
+            var pillData: PillData
+            val timeTaken = measureTime {
+                val startDate = Instant.now().minus(1, ChronoUnit.DAYS)
+                val result = communicationHelper.data.getDataForUser(
+                    context.getAccessToken(),
+                    userId = id,
+                    type = CommaSeparatedArray(dosingDecision, basal, cbg),
+                    startDate = startDate
+                )
+                Log.v(TAG, "getData result Array Length: ${result.size}")
+                val glucoseData = async { getGlucose(result) }
+                val basalData = async { getBasalResult(result) }
+                val dosingData = async { getDosingData(result) }
+                val (mgdl, diff, lastReading) = glucoseData.await()
+                val (activeCarbs, activeInsulin) = dosingData.await()
+                pillData = PillData(
+                    mgdl,
+                    diff,
+                    name ?: "User",
+                    basalData.await(),
+                    activeCarbs,
+                    activeInsulin,
+                    lastReading,
+                    null,
+                    null
+                )
+            }
+            
+            Log.v(TAG, "User ${pillData.name} took $timeTaken to process")
+            
+            return@coroutineScope pillData
         }
 }

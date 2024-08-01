@@ -4,55 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.with
+import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.IntrinsicSize.Min
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,21 +29,27 @@ import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import org.tidepool.carepartner.backend.DataUpdater
-import org.tidepool.carepartner.backend.PersistentData
 import org.tidepool.carepartner.backend.PersistentData.Companion.authState
 import org.tidepool.carepartner.backend.PersistentData.Companion.logout
 import org.tidepool.carepartner.backend.PillData
-import org.tidepool.carepartner.ui.theme.LoopFollowTheme
-import org.tidepool.sdk.CommunicationHelper
+import org.tidepool.carepartner.ui.theme.*
 import org.tidepool.sdk.model.confirmations.Confirmation
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class FollowActivity : ComponentActivity() {
     companion object {
         const val TAG = "FollowActivity"
-        val executor = Executors.newScheduledThreadPool(1)
+        val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
     }
 
     private var future: ScheduledFuture<*>? = null
@@ -99,44 +74,222 @@ class FollowActivity : ComponentActivity() {
             }
         }
     }
-
-    private val communicationHelper: CommunicationHelper by lazy {
-        CommunicationHelper(
-            PersistentData.environment
-        )
-    }
-
+    
     @Composable
-    fun FollowPill(pillData: PillData, expanded: Boolean, inMenu: Boolean, modifier: Modifier = Modifier) {
-        var expanded by remember(expanded) { mutableStateOf(expanded) }
+    fun FollowPill(pillData: PillData, mutableExpanded: MutableState<Boolean>, inMenu: Boolean, modifier: Modifier = Modifier) {
+        var expanded by mutableExpanded
         AnimatedContent(expanded, label = "Card",
             transitionSpec = {
                 val anim = (expandVertically { it } + fadeIn()).togetherWith(shrinkVertically { it } + fadeOut())
                 anim.using(SizeTransform(clip = false))
-            }) {
-            Card(onClick = { expanded = !expanded }, enabled = !inMenu, modifier = modifier) {
-
-                Text(
-                    "data=$pillData",
-                    modifier = Modifier.padding(6.dp, 3.dp)
+            }) { cardExpanded ->
+            val outerCardColor = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            Card(onClick = { expanded = !expanded }, enabled = !inMenu, modifier = modifier, colors=outerCardColor) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    UserImage(pillData)
+                    Text(
+                        text = pillData.name,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        lineHeight = 24.sp
+                    )
+                }
+                val innerCardColor = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
+                Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+                    .fillMaxWidth()
+                    .height(Min)
+                    .width(Min)) {
+                    Card(colors = innerCardColor, modifier = Modifier
+                        .padding(10.dp)
+                        .width(120.dp)
+                        .fillMaxHeight()) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
+                            .padding(5.dp)
+                            .fillMaxSize()) {
+                            Spacer(modifier = Modifier)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = pillData.bg?.roundToInt()?.toString() ?: "---",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 30.sp,
+                                    lineHeight = 35.8.sp
+                                )
+                                Text(
+                                    text = "mg/dL",
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 11.sp,
+                                    color = Grey0300
+                                )
+                            }
+                        }
+                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.loop_indicator),
+                        contentDescription = "looping"
+                    )
+                    Card(colors = innerCardColor,modifier = Modifier
+                        .padding(10.dp)
+                        .width(120.dp)
+                        .fillMaxHeight()) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier
+                            .padding(5.dp)
+                            .fillMaxSize()) {
+                            Text(
+                                text = pillData.basalRate?.let {
+                                    String.format(Locale.getDefault(), "%1.2f", it)
+                                } ?: "---",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 30.sp,
+                                lineHeight = 35.8.sp,
+                                color = Loop_Light_Insulin
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "U/hr",
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = Grey0300
+                            )
+                        }
+                    }
+                }
 
-                if (it) {
-                    Text("Testing...")
+                if (cardExpanded) {
+                    Card(colors = innerCardColor, modifier = Modifier
+                        .padding(10.dp)
+                        .fillMaxWidth()) {
+                        DetailedInfo(
+                            title = "Change in Glucose",
+                            name = "Reading",
+                            lastInstance = pillData.lastGlucose,
+                            modifier = Modifier.padding(5.dp)
+                        ) {
+                            Row {
+                                val change = pillData.glucoseChange?.roundToInt()
+                                if ((change ?: 1) < 0) {
+                                    Text(
+                                        text = "-",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp,
+                                        lineHeight = 19.09.sp,
+                                        color = Loop_Light_BloodGlucose
+                                    )
+                                }
+                                Text(
+                                    text = change?.absoluteValue?.toString() ?: "---",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 24.sp,
+                                    lineHeight = 28.64.sp,
+                                    color = Loop_Light_BloodGlucose
+                                )
+                            }
+                        }
+                        HorizontalDivider()
+                        DetailedInfo(title = "Active Insulin",
+                            name = "Bolus",
+                            lastInstance = pillData.lastBolus,
+                            modifier = Modifier.padding(5.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                val text = pillData.activeInsulin?.amount?.let {
+                                    String.format(Locale.getDefault(), "%1.2f", it)
+                                } ?: "---"
+                                Text(
+                                    text = text,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 24.sp,
+                                    lineHeight = 28.64.sp,
+                                    color = Loop_Light_Insulin
+                                )
+                                Text(
+                                    text = "U",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp,
+                                    lineHeight = 19.09.sp,
+                                    color = Loop_Light_Insulin,
+                                    modifier = Modifier.padding(start = 2.dp, end = 5.dp)
+                                )
+                            }
+                        }
+                        HorizontalDivider()
+                        DetailedInfo(
+                            title = "Active Carbs",
+                            name = "Entry",
+                            lastInstance = pillData.lastCarbEntry,
+                            modifier = Modifier.padding(5.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = pillData.activeCarbs?.amount?.roundToInt()?.toString() ?: "---",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 24.sp,
+                                    lineHeight = 28.64.sp,
+                                    color = Loop_Light_Carbohydrates
+                                )
+                                Text(
+                                    text = "g",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp,
+                                    lineHeight = 19.09.sp,
+                                    color = Loop_Light_Carbohydrates,
+                                    modifier = Modifier.padding(start = 2.dp, end = 5.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+    
+    @Composable
+    fun DetailedInfo(title: String, name: String, lastInstance: Instant?, modifier: Modifier = Modifier, display: @Composable () -> Unit) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier.fillMaxWidth()
+        ) {
+            Column {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 17.sp,
+                    lineHeight = 20.29.sp
+                )
+                val duration = lastInstance?.until(Instant.now(), ChronoUnit.MINUTES)?.minutes
+                val text = duration?.let { diff ->
+                    if (diff >= 1.hours) {
+                        val hours = diff.inWholeHours
+                        "$hours hour${if (hours != 1L) "s" else ""} ago"
+                    } else {
+                        val minutes = diff.inWholeMinutes
+                        "$minutes min${if (minutes != 1L) "s" else ""} ago"
+                    }
+                    
+                } ?: ""
+                Text(
+                    text = "Last $name: $text",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = 16.71.sp,
+                    color = Color(0xFF92949C)
+                )
+            }
+            display()
+        }
+    }
 
     @Composable
-    fun UserImage(modifier: Modifier = Modifier, id: String? = null) {
-        if (id.isNullOrBlank()) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_background),
-                contentDescription = "Test",
-                modifier = modifier.size(20.dp)
-            )
-        }
+    fun UserImage(pillData: PillData, modifier: Modifier = Modifier) {
+        Icon(
+            Icons.Filled.AccountCircle,
+            contentDescription = "${pillData.name} image",
+            modifier = modifier
+                .padding(horizontal = 5.dp)
+        )
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -156,13 +309,19 @@ class FollowActivity : ComponentActivity() {
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         titleContentColor = MaterialTheme.colorScheme.primary,
                     ), actions = {
-                        UserImage(modifier = Modifier
-                            .clickable { menuVisible = true }
-                            .padding(horizontal = 5.dp))
+                        Icon(
+                            Icons.Filled.AccountCircle,
+                            contentDescription = "account",
+                            modifier = Modifier
+                                .clickable { menuVisible = true }
+                                .padding(horizontal = 5.dp)
+                        )
                     }, title = {
                         Text("Following")
                     })
                 }) { innerPadding ->
+                val states = remember { HashMap<String, MutableState<Boolean>>() }
+                var closedInitial by remember { mutableStateOf(false) }
                 LazyColumn(
                     horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier
                         .fillMaxWidth()
@@ -173,9 +332,14 @@ class FollowActivity : ComponentActivity() {
                     items(
                         items = ids.toList(),
                         key = { message ->
-                            message.first.hashCode() * 31 + message.second.hashCode()
-                        }) { data ->
-                        FollowPill(data.second,ids.size < 2, menuVisible)
+                            message.hashCode()
+                        }) { (id, data) ->
+                        if (ids.size > 1 && !closedInitial) {
+                            states.computeIfAbsent(id) { mutableStateOf(false) }.value = false
+                            closedInitial = true
+                        }
+                        val state = states.computeIfAbsent(id) { mutableStateOf(ids.size < 2) }
+                        FollowPill(data, state, menuVisible)
                     }
                 }
             }
@@ -189,7 +353,10 @@ class FollowActivity : ComponentActivity() {
                     -it
                 }
             ) {
-                Box(Modifier.fillMaxSize().clickable(enabled = menuVisible) { menuVisible = false })
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .clickable(enabled = menuVisible) { menuVisible = false })
                 Menu()
             }
         }
@@ -213,7 +380,7 @@ class FollowActivity : ComponentActivity() {
                 modifier = modifier
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxHeight()
-                    .width(IntrinsicSize.Min), horizontalAlignment = Alignment.Start
+                    .width(Min), horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text = "Menu", fontSize = 24.sp, modifier = Modifier
@@ -236,7 +403,7 @@ class FollowActivity : ComponentActivity() {
         }
     }
 
-    @Preview(showBackground = true, group = "component")
+    @Preview(showBackground = true, group = "mockup")
     @Composable
     fun MenuPreview() {
         LoopFollowTheme {
@@ -248,7 +415,10 @@ class FollowActivity : ComponentActivity() {
     @Composable
     fun FollowerPreview() {
         LoopFollowTheme {
-            FollowPill(PillData(130.0), expanded = false, inMenu = false)
+            FollowPill(
+                PillData(130.0),
+                mutableExpanded = remember { mutableStateOf(false) },
+                inMenu = false)
         }
     }
 
@@ -256,7 +426,19 @@ class FollowActivity : ComponentActivity() {
     @Composable
     fun ExpandedFollowerPreview() {
         LoopFollowTheme {
-            FollowPill(PillData(130.0), expanded = true, inMenu = false)
+            val lastReading = Instant.now().minus(1L, ChronoUnit.MINUTES)
+            val lastBolus = Instant.now().minus(2L, ChronoUnit.MINUTES)
+            val lastEntry = Instant.now().minus(1L, ChronoUnit.HOURS)
+            FollowPill(
+                PillData(
+                    130.0,
+                    lastGlucose = lastReading,
+                    lastBolus = lastBolus,
+                    lastCarbEntry = lastEntry
+                ),
+                mutableExpanded = remember { mutableStateOf(true) },
+                inMenu = false
+            )
         }
     }
 }

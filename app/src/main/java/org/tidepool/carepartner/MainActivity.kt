@@ -51,8 +51,8 @@ class MainActivity : ComponentActivity() {
     private fun authorize() {
         authService.performAuthorizationRequest(
             PersistentData.getAuthRequestBuilder().build(),
-            PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_MUTABLE),
-            PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_MUTABLE)
+            PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_MUTABLE),
+            PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_MUTABLE)
         )
     }
 }
