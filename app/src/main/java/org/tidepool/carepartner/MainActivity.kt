@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
@@ -45,14 +46,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         baseContext.readFromDisk()
         PersistentData.renewAuthState()
-        if (PersistentData.authState.accessTokenExpiration?.let {
-                Instant.now().until(it, ChronoUnit.MILLIS).milliseconds.isPositive()
-            } == true || PersistentData.lastEmail != null
-        ) {
-            authorize()
-        }
         setContent {
             LoopFollowTheme {
+                if (
+                    PersistentData.lastEmail != null ||
+                    PersistentData.authState.accessTokenExpiration?.let {
+                        Instant.now().until(it, ChronoUnit.MILLIS).milliseconds > 10.seconds
+                    } == true
+                ) {
+                    authorize()
+                }
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {

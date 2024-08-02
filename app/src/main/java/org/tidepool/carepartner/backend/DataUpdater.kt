@@ -8,6 +8,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import org.tidepool.sdk.model.data.InsulinData
+import org.tidepool.sdk.model.data.BolusData
 import kotlinx.coroutines.runBlocking
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
 import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
@@ -141,20 +143,31 @@ class DataUpdater(
             } ?: Pair(null, null)
     }
     
+    private fun getLastBolus(result: Array<BaseData>): Instant? {
+        return result.filterIsInstance<BolusData>().onEach { Log.v(TAG, "Insulin data $it") }.maxByOrNull { it.time ?: Instant.MIN }?.time
+    }
+    
+    private fun getLastCarbEntry(result: Array<BaseData>): Instant? {
+        return result.filterIsInstance<InsulinData>().filter { it.dose.food != null }.maxByOrNull { it.time ?: Instant.MIN }?.time
+    }
+    
     private suspend fun getData(id: String, name: String?): PillData = coroutineScope {
             var pillData: PillData
             val timeTaken = measureTime {
                 val startDate = Instant.now().minus(1, ChronoUnit.DAYS)
+                Log.v(TAG, "Getting data for user $name ($id)")
                 val result = communicationHelper.data.getDataForUser(
                     context.getAccessToken(),
                     userId = id,
-                    type = CommaSeparatedArray(dosingDecision, basal, cbg),
+                    types = CommaSeparatedArray(dosingDecision, basal, cbg, bolus),
                     startDate = startDate
                 )
                 Log.v(TAG, "getData result Array Length: ${result.size}")
                 val glucoseData = async { getGlucose(result) }
                 val basalData = async { getBasalResult(result) }
                 val dosingData = async { getDosingData(result) }
+                val lastBolus = async { getLastBolus(result) }
+                val lastCarbEntry = async { getLastCarbEntry(result) }
                 val (mgdl, diff, lastReading) = glucoseData.await()
                 val (activeCarbs, activeInsulin) = dosingData.await()
                 pillData = PillData(
@@ -165,8 +178,8 @@ class DataUpdater(
                     activeCarbs,
                     activeInsulin,
                     lastReading,
-                    null,
-                    null
+                    lastBolus.await(),
+                    lastCarbEntry.await()
                 )
             }
             

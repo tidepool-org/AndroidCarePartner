@@ -169,7 +169,6 @@ class PersistentData {
             ).apply {
                 setScope("openid email")
                 setLoginHint(_lastEmail ?: "wavedashing@madeline.celeste.com")
-                //setLoginHint("jdoe@user.example.com")
             }
         }
         

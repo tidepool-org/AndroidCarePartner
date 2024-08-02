@@ -1,5 +1,6 @@
 package org.tidepool.carepartner
 
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,13 +26,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import org.tidepool.carepartner.backend.DataUpdater
 import org.tidepool.carepartner.backend.PersistentData.Companion.authState
 import org.tidepool.carepartner.backend.PersistentData.Companion.logout
-import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
 import org.tidepool.carepartner.backend.PillData
 import org.tidepool.carepartner.ui.theme.*
 import org.tidepool.sdk.model.confirmations.Confirmation
@@ -42,10 +43,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
-import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.TimeSource
 
 class FollowActivity : ComponentActivity() {
     companion object {
@@ -61,15 +65,17 @@ class FollowActivity : ComponentActivity() {
         val ex = AuthorizationException.fromIntent(intent)
         enableEdgeToEdge()
         setContent {
-            if (ex != null) {
+            if (resp != null) {
                 val authService = AuthorizationService(this)
                 authService.performTokenRequest(
-                    resp!!.createTokenExchangeRequest()
+                    resp.createTokenExchangeRequest()
                 ) { resp, ex ->
                     authState.update(resp, ex)
                 }
             }
             authState.update(resp, ex)
+            
+            
             LoopFollowTheme {
                 App(modifier = Modifier.fillMaxSize())
             }
@@ -171,17 +177,8 @@ class FollowActivity : ComponentActivity() {
                         ) {
                             Row {
                                 val change = pillData.glucoseChange?.roundToInt()
-                                if ((change ?: 1) < 0) {
-                                    Text(
-                                        text = "-",
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp,
-                                        lineHeight = 19.09.sp,
-                                        color = Loop_Light_BloodGlucose
-                                    )
-                                }
                                 Text(
-                                    text = change?.absoluteValue?.toString() ?: "---",
+                                    text = change?.toString() ?: "---",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
@@ -204,14 +201,14 @@ class FollowActivity : ComponentActivity() {
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
-                                    color = Loop_Light_Insulin
+                                    color = LoopTheme.current.insulin
                                 )
                                 Text(
                                     text = "U",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 16.sp,
                                     lineHeight = 19.09.sp,
-                                    color = Loop_Light_Insulin,
+                                    color = LoopTheme.current.insulin,
                                     modifier = Modifier.padding(start = 2.dp, end = 5.dp)
                                 )
                             }
@@ -247,6 +244,8 @@ class FollowActivity : ComponentActivity() {
         }
     }
     
+    private val timeSource = TimeSource.Monotonic
+    
     @Composable
     fun DetailedInfo(title: String, name: String, lastInstance: Instant?, modifier: Modifier = Modifier, display: @Composable () -> Unit) {
         Row(
@@ -261,8 +260,8 @@ class FollowActivity : ComponentActivity() {
                     fontSize = 17.sp,
                     lineHeight = 20.29.sp
                 )
-                val duration = lastInstance?.until(Instant.now(), ChronoUnit.MINUTES)?.minutes
-                val text = duration?.let { diff ->
+                var minutesPast by remember { mutableStateOf(lastInstance?.until(Instant.now())) }
+                val text = minutesPast?.let { diff ->
                     if (diff >= 1.hours) {
                         val hours = diff.inWholeHours
                         "$hours hour${if (hours != 1L) "s" else ""} ago"
@@ -279,6 +278,18 @@ class FollowActivity : ComponentActivity() {
                     lineHeight = 16.71.sp,
                     color = Color(0xFF92949C)
                 )
+                LaunchedEffect(key1 = minutesPast) {
+                    lastInstance?.let { last ->
+                        val timeSince = last.until(Instant.now())
+                        val toDelay = if (timeSince <= 1.hours) {
+                            (timeSince.inWholeMinutes + 1).minutes - timeSince
+                        } else {
+                            (timeSince.inWholeHours + 1).hours - timeSince
+                        }
+                        delay(toDelay)
+                        minutesPast = last.until(Instant.now())
+                    }
+                }
             }
             display()
         }
@@ -324,6 +335,7 @@ class FollowActivity : ComponentActivity() {
                 }) { innerPadding ->
                 val states = remember { HashMap<String, MutableState<Boolean>>() }
                 var closedInitial by remember { mutableStateOf(false) }
+                var toggle by remember { mutableStateOf(true) }
                 LazyColumn(
                     horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier
                         .fillMaxWidth()
@@ -413,7 +425,8 @@ class FollowActivity : ComponentActivity() {
         }
     }
 
-    @Preview(showBackground = false, group = "component")
+    @Preview(name = "Light Mode", showBackground = false, group = "component")
+    @Preview(name = "Dark Mode", showBackground = false, group = "dark mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun FollowerPreview() {
         LoopFollowTheme {
@@ -423,8 +436,9 @@ class FollowActivity : ComponentActivity() {
                 inMenu = false)
         }
     }
-
-    @Preview(showBackground = false, group = "component")
+    
+    @Preview(name = "Light Mode", showBackground = false, group = "component")
+    @Preview(name = "Dark Mode", showBackground = false, group = "dark mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun ExpandedFollowerPreview() {
         LoopFollowTheme {
@@ -436,11 +450,16 @@ class FollowActivity : ComponentActivity() {
                     130.0,
                     lastGlucose = lastReading,
                     lastBolus = lastBolus,
-                    lastCarbEntry = lastEntry
+                    lastCarbEntry = lastEntry,
+                    glucoseChange = -5.0
                 ),
                 mutableExpanded = remember { mutableStateOf(true) },
                 inMenu = false
             )
         }
     }
+}
+
+fun Instant.until(other: Instant): Duration {
+    return until(other, ChronoUnit.NANOS).nanoseconds
 }
