@@ -8,8 +8,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import org.tidepool.sdk.model.data.InsulinData
-import org.tidepool.sdk.model.data.BolusData
 import kotlinx.coroutines.runBlocking
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
 import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
@@ -18,12 +16,9 @@ import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.requests.Data.CommaSeparatedArray
 import org.tidepool.sdk.model.BloodGlucose
 import org.tidepool.sdk.model.confirmations.Confirmation
-import org.tidepool.sdk.model.data.BasalAutomatedData
+import org.tidepool.sdk.model.data.*
 import org.tidepool.sdk.model.data.BasalAutomatedData.DeliveryType
-import org.tidepool.sdk.model.data.BaseData
 import org.tidepool.sdk.model.data.BaseData.DataType.*
-import org.tidepool.sdk.model.data.ContinuousGlucoseData
-import org.tidepool.sdk.model.data.DosingDecisionData
 import org.tidepool.sdk.model.data.DosingDecisionData.CarbsOnBoard
 import org.tidepool.sdk.model.data.DosingDecisionData.InsulinOnBoard
 import org.tidepool.sdk.model.metadata.users.TrustUser
@@ -148,7 +143,7 @@ class DataUpdater(
     }
     
     private fun getLastCarbEntry(result: Array<BaseData>): Instant? {
-        return result.filterIsInstance<InsulinData>().filter { it.dose.food != null }.maxByOrNull { it.time ?: Instant.MIN }?.time
+        return result.filterIsInstance<FoodData>().maxByOrNull { it.time ?: Instant.MIN }?.time
     }
     
     private suspend fun getData(id: String, name: String?): PillData = coroutineScope {
@@ -159,7 +154,7 @@ class DataUpdater(
                 val result = communicationHelper.data.getDataForUser(
                     context.getAccessToken(),
                     userId = id,
-                    types = CommaSeparatedArray(dosingDecision, basal, cbg, bolus),
+                    types = CommaSeparatedArray(dosingDecision, basal, cbg, bolus, food),
                     startDate = startDate
                 )
                 Log.v(TAG, "getData result Array Length: ${result.size}")
