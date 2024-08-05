@@ -23,7 +23,7 @@ import org.tidepool.sdk.model.data.DosingDecisionData.CarbsOnBoard
 import org.tidepool.sdk.model.data.DosingDecisionData.InsulinOnBoard
 import org.tidepool.sdk.model.metadata.users.TrustUser
 import org.tidepool.sdk.model.metadata.users.TrustorUser
-import org.tidepool.sdk.requests.pendingCareTeamInvitations
+import org.tidepool.sdk.requests.receivedInvitations
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.time.measureTime
@@ -61,7 +61,7 @@ class DataUpdater(
     
     private suspend fun getInvitations(): Array<Confirmation> {
         val userId = communicationHelper.users.getCurrentUserInfo(context.getAccessToken()).userid
-        return communicationHelper.confirmations.pendingCareTeamInvitations(context.getAccessToken(), userId)
+        return communicationHelper.confirmations.receivedInvitations(context.getAccessToken(), userId)
     }
     
     private fun getIdFlow(): Flow<Pair<String, String?>> = flow {
@@ -87,6 +87,7 @@ class DataUpdater(
         }
         
         val data = dataArr.getOrNull(0)
+        Log.v(TAG, "Data: $data")
         val lastData = dataArr.getOrNull(1)
         
         val mgdl = data?.let { glucoseData ->

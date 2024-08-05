@@ -17,4 +17,7 @@ val Loop_Light_Insulin = Color(0xFF5569F2)
 val Loop_Light_Carbohydrates = Color(0xFF00AA39)
 val Loop_Light_BloodGlucose = Color(0xFF775DCB)
 
+val Loop_Dark_Insulin = Color(0xFF6783FF)
+
 val Grey0300 = Color(0xFF999999)
+val CardGrey = Color(0xFF2C2C2E)

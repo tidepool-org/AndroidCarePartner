@@ -463,7 +463,8 @@ class FollowActivity : ComponentActivity() {
             FollowPill(
                 PillData(130.0),
                 mutableExpanded = remember { mutableStateOf(false) },
-                inMenu = false)
+                inMenu = false
+            )
         }
     }
     
