@@ -15,6 +15,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.*
@@ -83,6 +86,13 @@ class FollowActivity : ComponentActivity() {
         
     }
     
+    /**
+     * Card that displays the information for a single user
+     * @param pillData The data to display
+     * @param mutableExpanded The state the determines if the card is expanded
+     * @param inMenu if the menu is open
+     * @param modifier The [Modifier] to apply
+     */
     @Composable
     fun FollowPill(pillData: PillData, mutableExpanded: MutableState<Boolean>, inMenu: Boolean, modifier: Modifier = Modifier) {
         var expanded by mutableExpanded
@@ -100,6 +110,11 @@ class FollowActivity : ComponentActivity() {
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 20.sp,
                         lineHeight = 24.sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        if (cardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "expand arrow"
                     )
                 }
                 val innerCardColor = CardDefaults.cardColors(
@@ -244,8 +259,15 @@ class FollowActivity : ComponentActivity() {
         }
     }
     
-    private val timeSource = TimeSource.Monotonic
     
+    /**
+     * The detailed information that is displayed when the follow pill is expanded.
+     * @param title The large text that describes the information in [display]
+     * @param name The text to put after "Last" to describe the time ago
+     * @param lastInstance The last instance of this thing occurring. If it is null, it will not display a time ago.
+     * @param modifier The modifier for this detailedInfo
+     * @param display The display for the text that shows the amount.
+     */
     @Composable
     fun DetailedInfo(title: String, name: String, lastInstance: Instant?, modifier: Modifier = Modifier, display: @Composable () -> Unit) {
         Row(
@@ -294,7 +316,11 @@ class FollowActivity : ComponentActivity() {
             display()
         }
     }
-
+    
+    /**
+     * The User icon of the current user
+     * @param pillData The data to use for displaying the user icon
+     */
     @Composable
     fun UserImage(pillData: PillData, modifier: Modifier = Modifier) {
         Icon(
@@ -304,7 +330,11 @@ class FollowActivity : ComponentActivity() {
                 .padding(horizontal = 5.dp)
         )
     }
-
+    
+    /**
+     * The application to render. This is not in the callback so that if there is a method to
+     * simulate communication with the backend, the entire app can be displayed with dummy data.
+     */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun App(modifier: Modifier = Modifier) {
@@ -386,7 +416,7 @@ class FollowActivity : ComponentActivity() {
             )
         }
     }
-
+    
     @Composable
     fun Menu(modifier: Modifier = Modifier) {
         Row(Modifier.clickable(false) { }) {
