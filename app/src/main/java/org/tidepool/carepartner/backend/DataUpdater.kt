@@ -139,7 +139,7 @@ class DataUpdater(
     }
     
     private fun getLastBolus(result: Array<BaseData>): Instant? {
-        return result.filterIsInstance<BolusData>().onEach { Log.v(TAG, "Insulin data $it") }.maxByOrNull { it.time ?: Instant.MIN }?.time
+        return result.filterIsInstance<BolusData>().maxByOrNull { it.time ?: Instant.MIN }?.time
     }
     
     private fun getLastCarbEntry(result: Array<BaseData>): Instant? {

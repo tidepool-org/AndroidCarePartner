@@ -151,7 +151,7 @@ class FollowActivity : ComponentActivity() {
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 30.sp,
                                 lineHeight = 35.8.sp,
-                                color = Loop_Light_Insulin
+                                color = LoopTheme.current.insulin
                             )
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(
@@ -182,7 +182,7 @@ class FollowActivity : ComponentActivity() {
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
-                                    color = Loop_Light_BloodGlucose
+                                    color = LoopTheme.current.bloodGlucose
                                 )
                             }
                         }
@@ -226,14 +226,14 @@ class FollowActivity : ComponentActivity() {
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
-                                    color = Loop_Light_Carbohydrates
+                                    color = LoopTheme.current.carbohydrates
                                 )
                                 Text(
                                     text = "g",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 16.sp,
                                     lineHeight = 19.09.sp,
-                                    color = Loop_Light_Carbohydrates,
+                                    color = LoopTheme.current.carbohydrates,
                                     modifier = Modifier.padding(start = 2.dp, end = 5.dp)
                                 )
                             }
@@ -260,7 +260,7 @@ class FollowActivity : ComponentActivity() {
                     fontSize = 17.sp,
                     lineHeight = 20.29.sp
                 )
-                var minutesPast by remember { mutableStateOf(lastInstance?.until(Instant.now())) }
+                var minutesPast by remember(lastInstance) { mutableStateOf(lastInstance?.until(Instant.now())) }
                 val text = minutesPast?.let { diff ->
                     if (diff >= 1.hours) {
                         val hours = diff.inWholeHours
