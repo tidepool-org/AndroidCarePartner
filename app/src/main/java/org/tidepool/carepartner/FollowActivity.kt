@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -151,8 +152,9 @@ class FollowActivity : ComponentActivity() {
                         }
                     }
                     Image(
-                        painter = painterResource(id = LoopTheme.current.loopIcon),
-                        contentDescription = "looping"
+                        painter = painterResource(id = R.drawable.loop_status_icon),
+                        contentDescription = "loop status",
+                        colorFilter = ColorFilter.tint(LoopTheme.current.loopStatus)
                     )
                     Card(colors = innerCardColor,modifier = Modifier
                         .padding(10.dp)
@@ -164,7 +166,7 @@ class FollowActivity : ComponentActivity() {
                             Text(
                                 text = pillData.basalRate?.let {
                                     String.format(Locale.getDefault(), "%1.2f", it)
-                                } ?: "Basal",
+                                } ?: "---",
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 30.sp,
                                 lineHeight = 35.8.sp,

@@ -13,14 +13,21 @@ val Pink40 = Color(0xFF7D5260)
 val White = Color(0xFFFFFFFF)
 val Grey = Color(0xFFF4F4F9)
 
+val Loop_Light_Accent = Color(0xFF5D79FF)
+val Loop_Light_Warning = Color(0xFFDC7400)
+val Loop_Light_Critical = Color(0xFFFF3B30)
 val Loop_Light_BloodGlucose = Color(0xFF775DCB)
 val Loop_Light_Insulin = Color(0xFF5569F2)
 val Loop_Light_Carbohydrates = Color(0xFF00AA39)
+val Loop_Light_Status = Color(0xFF00AA39)
 
-
+val Loop_Dark_Accent = Color(0xFF6783FF)
+val Loop_Dark_Warning = Color(0xFFE67E0A)
+val Loop_Dark_Critical = Color(0xFFFF453A)
 val Loop_Dark_BloodGlucose = Color(0xFF9E8BDA)
 val Loop_Dark_Insulin = Color(0xFF5F73FC)
 val Loop_Dark_Carbohydrates = Color(0xFF0AB443)
+val Loop_Dark_Status = Color(0xFF0AB443)
 
 val Grey0300 = Color(0xFF999999)
 val CardGrey = Color(0xFF2C2C2E)

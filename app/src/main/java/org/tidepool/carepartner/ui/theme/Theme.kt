@@ -1,7 +1,6 @@
 package org.tidepool.carepartner.ui.theme
 
 import android.os.Build
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -9,7 +8,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import org.tidepool.carepartner.R
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -41,9 +39,25 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
-private val LightLoopTheme = LoopTheme(Loop_Light_Insulin, Loop_Light_Carbohydrates, Loop_Light_BloodGlucose, R.drawable.loop_indicator_light)
+private val LightLoopTheme = LoopTheme(
+    primaryAccent = Loop_Light_Accent,
+    warning = Loop_Light_Warning,
+    critical = Loop_Light_Critical,
+    insulin = Loop_Light_Insulin,
+    carbohydrates = Loop_Light_Carbohydrates,
+    bloodGlucose = Loop_Light_BloodGlucose,
+    loopStatus = Loop_Light_Status
+)
 
-private val DarkLoopTheme = LoopTheme(Loop_Dark_Insulin, Loop_Dark_Carbohydrates, Loop_Dark_BloodGlucose, R.drawable.loop_indicator_dark)
+private val DarkLoopTheme = LoopTheme(
+    primaryAccent = Loop_Dark_Accent,
+    warning = Loop_Dark_Warning,
+    critical = Loop_Dark_Critical,
+    insulin = Loop_Dark_Insulin,
+    carbohydrates = Loop_Dark_Carbohydrates,
+    bloodGlucose = Loop_Dark_BloodGlucose,
+    loopStatus = Loop_Dark_Status
+)
 
 @Composable
 fun LoopFollowTheme(
@@ -57,7 +71,7 @@ fun LoopFollowTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
+        
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
@@ -78,10 +92,13 @@ fun LoopFollowTheme(
 }
 
 data class LoopTheme(
+    val primaryAccent: Color,
+    val warning: Color,
+    val critical: Color,
     val insulin: Color,
     val carbohydrates: Color,
     val bloodGlucose: Color,
-    @DrawableRes val loopIcon: Int
+    val loopStatus: Color
 ) {
     companion object {
         val current: LoopTheme
