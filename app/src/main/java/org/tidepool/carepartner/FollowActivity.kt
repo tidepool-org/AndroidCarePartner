@@ -76,8 +76,10 @@ class FollowActivity : ComponentActivity() {
                     authState.update(resp, ex)
                 }
             }
-            authState.update(resp, ex)
             
+            if ((resp == null).xor(ex == null)) {
+                authState.update(resp, ex)
+            }
             
             LoopFollowTheme {
                 App(modifier = Modifier.fillMaxSize())

@@ -45,17 +45,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         baseContext.readFromDisk()
-        PersistentData.renewAuthState()
+        
+        if (
+            PersistentData.authState.accessTokenExpiration?.let {
+                Instant.now().until(it, ChronoUnit.MILLIS).milliseconds > 10.seconds
+            } == true
+        ) {
+            startActivity(Intent(this, FollowActivity::class.java))
+        } else {
+            PersistentData.renewAuthState()
+            if (PersistentData.lastEmail != null) {
+                authorize()
+            }
+        }
         setContent {
             LoopFollowTheme {
-                if (
-                    PersistentData.lastEmail != null ||
-                    PersistentData.authState.accessTokenExpiration?.let {
-                        Instant.now().until(it, ChronoUnit.MILLIS).milliseconds > 10.seconds
-                    } == true
-                ) {
-                    authorize()
-                }
+                
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
