@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -51,10 +50,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlin.time.TimeSource
 
 class FollowActivity : ComponentActivity() {
     companion object {
@@ -154,7 +151,7 @@ class FollowActivity : ComponentActivity() {
                         }
                     }
                     Image(
-                        painter = painterResource(id = R.drawable.loop_indicator),
+                        painter = painterResource(id = LoopTheme.current.loopIcon),
                         contentDescription = "looping"
                     )
                     Card(colors = innerCardColor,modifier = Modifier
@@ -167,7 +164,7 @@ class FollowActivity : ComponentActivity() {
                             Text(
                                 text = pillData.basalRate?.let {
                                     String.format(Locale.getDefault(), "%1.2f", it)
-                                } ?: "---",
+                                } ?: "Basal",
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 30.sp,
                                 lineHeight = 35.8.sp,
@@ -452,7 +449,8 @@ class FollowActivity : ComponentActivity() {
         }
     }
 
-    @Preview(showBackground = true, group = "mockup")
+    @Preview(name = "Light Mode", showBackground = true, group = "mockup")
+    @Preview(name = "Dark Mode", showBackground = false, group = "mockup", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun MenuPreview() {
         LoopFollowTheme {

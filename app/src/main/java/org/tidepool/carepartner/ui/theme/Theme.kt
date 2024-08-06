@@ -1,6 +1,7 @@
 package org.tidepool.carepartner.ui.theme
 
 import android.os.Build
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -8,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import org.tidepool.carepartner.R
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -39,9 +41,9 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
-private val LightLoopTheme = LoopTheme(Loop_Light_Insulin, Loop_Light_Carbohydrates, Loop_Light_BloodGlucose)
+private val LightLoopTheme = LoopTheme(Loop_Light_Insulin, Loop_Light_Carbohydrates, Loop_Light_BloodGlucose, R.drawable.loop_indicator_light)
 
-private val DarkLoopTheme = LoopTheme(Loop_Dark_Insulin, Loop_Light_Carbohydrates, Loop_Light_BloodGlucose)
+private val DarkLoopTheme = LoopTheme(Loop_Dark_Insulin, Loop_Dark_Carbohydrates, Loop_Dark_BloodGlucose, R.drawable.loop_indicator_dark)
 
 @Composable
 fun LoopFollowTheme(
@@ -79,6 +81,7 @@ data class LoopTheme(
     val insulin: Color,
     val carbohydrates: Color,
     val bloodGlucose: Color,
+    @DrawableRes val loopIcon: Int
 ) {
     companion object {
         val current: LoopTheme
