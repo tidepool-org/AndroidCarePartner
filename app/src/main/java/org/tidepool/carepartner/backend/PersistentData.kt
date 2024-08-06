@@ -29,7 +29,7 @@ class PersistentData {
     private class DataHolder {
         var authState: AuthState = AuthState()
         var lastEmail: String? = null
-        var environment: Environment = Environments.Qa1
+        var environment: Environment = Environments.Production
     }
     companion object {
         private val redirectUri = Uri.parse("org.tidepool.carepartner://tidepool_service_callback")

@@ -7,10 +7,10 @@
         <compositeConfiguration>
           <compositeBuild compositeDefinitionSource="SCRIPT">
             <builds>
-              <build path="$PROJECT_DIR$/TidepoolSDK" name="TidepoolSDK">
+              <build path="$PROJECT_DIR$/TidepoolKotlinAPI" name="TidepoolKotlinAPI">
                 <projects>
-                  <project path="$PROJECT_DIR$/TidepoolSDK" />
-                  <project path="$PROJECT_DIR$/TidepoolSDK/lib" />
+                  <project path="$PROJECT_DIR$/TidepoolKotlinAPI" />
+                  <project path="$PROJECT_DIR$/TidepoolKotlinAPI/lib" />
                 </projects>
               </build>
             </builds>
@@ -22,8 +22,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/TidepoolSDK" />
-            <option value="$PROJECT_DIR$/TidepoolSDK/lib" />
+            <option value="$PROJECT_DIR$/TidepoolKotlinAPI" />
+            <option value="$PROJECT_DIR$/TidepoolKotlinAPI/lib" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>

@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.clickable(
                                             indication = null,
                                             interactionSource = interactionSource
-                                        ) {}.padding(bottom = 10.dp).size(DpSize(40.dp, 40.dp))
+                                        ) {}.padding(bottom = 60.dp).size(DpSize(40.dp, 40.dp))
                                     )
                                     
                                     DropdownMenu(
