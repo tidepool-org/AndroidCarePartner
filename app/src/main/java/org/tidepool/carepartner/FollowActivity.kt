@@ -1,5 +1,7 @@
 package org.tidepool.carepartner
 
+import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -66,21 +68,22 @@ class FollowActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val resp = AuthorizationResponse.fromIntent(intent)
         val ex = AuthorizationException.fromIntent(intent)
+        @SuppressLint("SourceLockedOrientationActivity")
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        if (resp != null) {
+            val authService = AuthorizationService(this)
+            authService.performTokenRequest(
+                resp.createTokenExchangeRequest()
+            ) { newResp, newEx ->
+                authState.update(newResp, newEx)
+            }
+        }
+        
+        if ((resp == null).xor(ex == null)) {
+            authState.update(resp, ex)
+        }
         enableEdgeToEdge()
         setContent {
-            if (resp != null) {
-                val authService = AuthorizationService(this)
-                authService.performTokenRequest(
-                    resp.createTokenExchangeRequest()
-                ) { resp, ex ->
-                    authState.update(resp, ex)
-                }
-            }
-            
-            if ((resp == null).xor(ex == null)) {
-                authState.update(resp, ex)
-            }
-            
             LoopFollowTheme {
                 App(modifier = Modifier.fillMaxSize())
             }
@@ -108,7 +111,7 @@ class FollowActivity : ComponentActivity() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     UserImage(pillData)
                     Text(
-                        text = pillData.name,
+                        text = pillData.name.split(" ")[0],
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 20.sp,
                         lineHeight = 24.sp
@@ -195,7 +198,7 @@ class FollowActivity : ComponentActivity() {
                             Row {
                                 val change = pillData.glucoseChange?.roundToInt()
                                 Text(
-                                    text = change?.toString() ?: "---",
+                                    text = change?.let { if (it == 0) "0" else String.format(Locale.getDefault(),"%+d", it) } ?: "---",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,

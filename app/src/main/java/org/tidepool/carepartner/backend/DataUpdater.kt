@@ -3,12 +3,10 @@ package org.tidepool.carepartner.backend
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.MutableState
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
 import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
 import org.tidepool.carepartner.backend.PersistentData.Companion.writeToDisk
@@ -24,6 +22,7 @@ import org.tidepool.sdk.model.data.DosingDecisionData.InsulinOnBoard
 import org.tidepool.sdk.model.metadata.users.TrustUser
 import org.tidepool.sdk.model.metadata.users.TrustorUser
 import org.tidepool.sdk.requests.receivedInvitations
+import java.lang.Runnable
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.time.measureTime
@@ -150,32 +149,65 @@ class DataUpdater(
     private suspend fun getData(id: String, name: String?): PillData = coroutineScope {
             var pillData: PillData
             val timeTaken = measureTime {
-                val startDate = Instant.now().minus(1, ChronoUnit.DAYS)
+                var lastBolus: Instant? = null
+                var lastCarbEntry: Instant? = null
+                var mgdl: Double? = null
+                var diff: Double? = null
+                var lastReading: Instant? = null
+                var activeCarbs: CarbsOnBoard? = null
+                var activeInsulin: InsulinOnBoard? = null
+                var basalRate: Double? = null
                 Log.v(TAG, "Getting data for user $name ($id)")
-                val result = communicationHelper.data.getDataForUser(
-                    context.getAccessToken(),
-                    userId = id,
-                    types = CommaSeparatedArray(dosingDecision, basal, cbg, bolus, food),
-                    startDate = startDate
-                )
-                Log.v(TAG, "getData result Array Length: ${result.size}")
-                val glucoseData = async { getGlucose(result) }
-                val basalData = async { getBasalResult(result) }
-                val dosingData = async { getDosingData(result) }
-                val lastBolus = async { getLastBolus(result) }
-                val lastCarbEntry = async { getLastCarbEntry(result) }
-                val (mgdl, diff, lastReading) = glucoseData.await()
-                val (activeCarbs, activeInsulin) = dosingData.await()
+                val longJob = launch {
+                    val startDate = Instant.now().minus(3, ChronoUnit.DAYS)
+                    val result = communicationHelper.data.getDataForUser(
+                        context.getAccessToken(),
+                        userId = id,
+                        types = CommaSeparatedArray(bolus, food),
+                        startDate = startDate
+                    )
+                    
+                    val lastBolusDeferred = async { getLastBolus(result) }
+                    val lastCarbEntryDeferred = async { getLastCarbEntry(result) }
+                    lastBolus = lastBolusDeferred.await()
+                    lastCarbEntry = lastCarbEntryDeferred.await()
+                }
+                val shortJob = launch {
+                    val startDate = Instant.now().minus(630, ChronoUnit.SECONDS) // - 10.5 minutes
+                    
+                    val result = communicationHelper.data.getDataForUser(
+                        context.getAccessToken(),
+                        userId = id,
+                        types = CommaSeparatedArray(dosingDecision, basal, cbg),
+                        startDate = startDate
+                    )
+                    Log.v(TAG, "getData result Array Length: ${result.size}")
+                    val glucoseData = async { getGlucose(result) }
+                    val basalData = async { getBasalResult(result) }
+                    val dosingData = async { getDosingData(result) }
+                    val (newMgdl, newDiff, newLastReading) = glucoseData.await()
+                    mgdl = newMgdl
+                    diff = newDiff
+                    lastReading = newLastReading
+                    val (newActiveCarbs, newActiveInsulin) = dosingData.await()
+                    activeCarbs = newActiveCarbs
+                    activeInsulin = newActiveInsulin
+                    basalRate = basalData.await()
+                }
+                
+                longJob.join()
+                shortJob.join()
+                
                 pillData = PillData(
                     mgdl,
                     diff,
                     name ?: "User",
-                    basalData.await(),
+                    basalRate,
                     activeCarbs,
                     activeInsulin,
                     lastReading,
-                    lastBolus.await(),
-                    lastCarbEntry.await()
+                    lastBolus,
+                    lastCarbEntry
                 )
             }
             

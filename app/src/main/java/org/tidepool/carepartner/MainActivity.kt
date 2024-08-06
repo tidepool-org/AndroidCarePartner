@@ -1,7 +1,9 @@
 package org.tidepool.carepartner
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -43,12 +45,13 @@ import kotlin.time.Duration.Companion.seconds
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        @SuppressLint("SourceLockedOrientationActivity")
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
         baseContext.readFromDisk()
-        
         if (
             PersistentData.authState.accessTokenExpiration?.let {
-                Instant.now().until(it, ChronoUnit.MILLIS).milliseconds > 10.seconds
+                Instant.now().until(it) > 10.seconds
             } == true
         ) {
             startActivity(Intent(this, FollowActivity::class.java))
