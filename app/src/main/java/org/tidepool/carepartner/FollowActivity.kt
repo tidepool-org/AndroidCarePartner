@@ -429,19 +429,33 @@ class FollowActivity : ComponentActivity() {
                     .width(Min), horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = "Menu", fontSize = 24.sp, modifier = Modifier
+                    text = "Menu", fontSize = 24.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier
                         .padding(110.dp, 15.dp)
                         .align(Alignment.CenterHorizontally)
                 )
                 val menuOptionModifier = Modifier.padding(5.dp, 3.dp)
                 HorizontalDivider()
-                Text("Manage Account", modifier = menuOptionModifier)
+                Text(
+                    "Manage Account",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = menuOptionModifier
+                )
                 HorizontalDivider()
-                Text("Help Center", modifier = menuOptionModifier)
+                Text(
+                    "Help Center",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = menuOptionModifier
+                )
                 HorizontalDivider()
-                Text(text = "Logout", modifier = menuOptionModifier
-                    .clickable { future?.cancel(true); logout() }
-                    .fillMaxWidth())
+                Text(
+                    text = "Logout",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = menuOptionModifier
+                        .clickable { future?.cancel(true); logout() }
+                        .fillMaxWidth()
+                )
                 HorizontalDivider()
 
             }
