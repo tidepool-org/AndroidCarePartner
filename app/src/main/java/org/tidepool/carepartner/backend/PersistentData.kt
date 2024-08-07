@@ -169,7 +169,9 @@ class PersistentData {
                 redirectUri
             ).apply {
                 setScope("openid email")
-                setLoginHint(_lastEmail ?: "wavedashing@madeline.celeste.com")
+                _lastName?.let {
+                    setLoginHint(it)
+                }
             }
         }
         
