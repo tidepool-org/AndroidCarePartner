@@ -1,13 +1,14 @@
 package org.tidepool.carepartner.backend
 
 import org.tidepool.carepartner.backend.WarningType.None
+import org.tidepool.sdk.model.BloodGlucose.GlucoseReading
 import org.tidepool.sdk.model.BloodGlucose.Trend
 import org.tidepool.sdk.model.data.DosingDecisionData
 import java.time.Instant
 
 data class PillData(
-    val bg: Double? = null,
-    val glucoseChange: Double? = null,
+    val bg: GlucoseReading? = null,
+    val glucoseChange: GlucoseReading? = null,
     val name: String = "User",
     val basalRate: Double? = null,
     val activeCarbs: DosingDecisionData.CarbsOnBoard? = null,

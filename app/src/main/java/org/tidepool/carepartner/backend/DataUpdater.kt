@@ -3,6 +3,7 @@ package org.tidepool.carepartner.backend
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.MutableState
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -14,6 +15,7 @@ import org.tidepool.carepartner.backend.WarningType.*
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.requests.Data.CommaSeparatedArray
 import org.tidepool.sdk.model.BloodGlucose
+import org.tidepool.sdk.model.BloodGlucose.GlucoseReading
 import org.tidepool.sdk.model.BloodGlucose.Trend
 import org.tidepool.sdk.model.confirmations.Confirmation
 import org.tidepool.sdk.model.data.*
@@ -27,6 +29,7 @@ import org.tidepool.sdk.requests.receivedInvitations
 import java.lang.Runnable
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import org.tidepool.sdk.model.mgdl
 import kotlin.time.measureTime
 
 private const val TAG: String = "DataUpdater"
@@ -101,15 +104,16 @@ class DataUpdater(
             }
         }
         
-        val warningType = mgdl?.let { value ->
+        val warningType = data?.reading?.let { value ->
             when {
-                value > 400.0 -> Critical
-                value in 250.0..<400.0 -> Warning
-                value in 55.0..<70.0 -> Warning
-                value < 55.0 -> Critical
+                value > 400.mgdl -> Critical
+                value in 250.mgdl..<400.mgdl -> Warning
+                value in 55.mgdl..<70.mgdl -> Warning
+                value < 55.mgdl -> Critical
                 else -> None
             }
         } ?: None
+        
         
         val lastMgdl = lastData?.let { glucoseData ->
             glucoseData.value?.let {
@@ -117,18 +121,18 @@ class DataUpdater(
             }
         }
         
-        val diff = mgdl?.let { curr ->
-            lastMgdl?.let { last ->
+        val diff = data?.reading?.let { curr ->
+            lastData?.reading?.let { last ->
                 curr - last
             }
         }
         
-        return GlucoseData(mgdl, diff, data?.time, data?.trend, warningType)
+        return GlucoseData(data?.reading, diff, data?.time, data?.trend, warningType)
     }
     
     private data class GlucoseData(
-        val mgdl: Double?,
-        val diff: Double?,
+        val mgdl: GlucoseReading?,
+        val diff: GlucoseReading?,
         val time: Instant?,
         val trend: Trend?,
         val warningType: WarningType = None
@@ -175,8 +179,8 @@ class DataUpdater(
             val timeTaken = measureTime {
                 var lastBolus: Instant? = null
                 var lastCarbEntry: Instant? = null
-                var mgdl: Double? = null
-                var diff: Double? = null
+                var mgdl: GlucoseReading? = null
+                var diff: GlucoseReading? = null
                 var lastReading: Instant? = null
                 var activeCarbs: CarbsOnBoard? = null
                 var activeInsulin: InsulinOnBoard? = null

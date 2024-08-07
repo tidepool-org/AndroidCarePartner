@@ -14,13 +14,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
@@ -31,15 +28,10 @@ import net.openid.appauth.AuthorizationService
 import org.tidepool.carepartner.backend.PersistentData
 import org.tidepool.carepartner.backend.PersistentData.Companion.accessTokenExpiration
 import org.tidepool.carepartner.backend.PersistentData.Companion.readFromDisk
-import org.tidepool.carepartner.backend.UriDeserializer
 import org.tidepool.carepartner.ui.theme.LoopFollowTheme
-import org.tidepool.sdk.CommunicationHelper
+import org.tidepool.carepartner.ui.theme.LoopTheme
 import org.tidepool.sdk.Environments
 import java.time.Instant
-import java.time.temporal.ChronoUnit
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class MainActivity : ComponentActivity() {
@@ -65,19 +57,9 @@ class MainActivity : ComponentActivity() {
             LoopFollowTheme {
                 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box {
+                    Box(modifier = Modifier.padding(innerPadding)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxHeight()) {
-                                Button(
-                                    onClick = { authorize() },
-                                    modifier = Modifier.padding(innerPadding)
-                                ) {
-                                    Text(text = "Log In")
-                                }
-                            }
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier =  Modifier.fillMaxWidth()) {
-                            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxHeight()) {
                                 Box {
                                     var dropdownExpanded by remember { mutableStateOf(false) }
                                     var selectedEnv by remember { mutableStateOf(PersistentData.environment) }
@@ -85,13 +67,13 @@ class MainActivity : ComponentActivity() {
                                     
                                     //Image(painter = painterResource(id = R.drawable.logo), contentDescription = "Tidepool Logo")
                                     Image(
-                                        painterResource(id = R.drawable.image),
+                                        painterResource(id = R.drawable.loop_carepartner_icon),
                                         //Icons.Filled.AccountCircle,
                                         contentDescription = "Temp",
                                         modifier = Modifier.clickable(
                                             indication = null,
                                             interactionSource = interactionSource
-                                        ) {}.padding(bottom = 60.dp).size(DpSize(40.dp, 40.dp))
+                                        ) {}.size(DpSize(180.dp, 180.dp))
                                     )
                                     
                                     DropdownMenu(
@@ -122,6 +104,17 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier =  Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxHeight()) {
+                                Button(
+                                    onClick = { authorize() },
+                                    //modifier = Modifier.padding(bottom = 60.dp),
+                                    colors = LoopTheme.current.buttonColors
+                                ) {
+                                    Text(text = "Log In")
                                 }
                             }
                         }

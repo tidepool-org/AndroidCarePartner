@@ -18,6 +18,7 @@ import org.tidepool.carepartner.MainActivity
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.Environment
 import org.tidepool.sdk.Environments
+import org.tidepool.sdk.model.BloodGlucose.Units
 import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -29,7 +30,9 @@ class PersistentData {
     private class DataHolder {
         var authState: AuthState = AuthState()
         var lastEmail: String? = null
+        var lastName: String? = null
         var environment: Environment = Environments.Production
+        var unit: Units = Units.milligramsPerDeciliter
     }
     companion object {
         private val redirectUri = Uri.parse("org.tidepool.carepartner://tidepool_service_callback")
@@ -40,6 +43,9 @@ class PersistentData {
         var environment by data::environment
         private var _lastEmail by data::lastEmail
         val lastEmail by this::_lastEmail
+        private var _lastName by data::lastName
+        val lastName by this::_lastName
+        var unit by data::unit
         
         private val lock = ReentrantLock()
         
@@ -60,6 +66,8 @@ class PersistentData {
                         data.lastEmail = tmpData.lastEmail
                         data.authState = tmpData.authState
                         data.environment = tmpData.environment
+                        data.lastName = tmpData.lastName
+                        data.unit = tmpData.unit
                     }
                 }
             }
@@ -99,7 +107,9 @@ class PersistentData {
 
         fun Context.logout() {
             Log.v(TAG, "logout...")
-            data.lastEmail = null
+            _lastEmail = null
+            _lastName = null
+            
             val authService = AuthorizationService(this)
             val endSessionRequest = EndSessionRequest.Builder(_authState.authorizationServiceConfiguration ?: throw NullPointerException("No configuration"))
                 .setIdTokenHint(_authState.idToken)
@@ -141,8 +151,10 @@ class PersistentData {
         }
         
         suspend fun Context.saveEmail() {
-            _lastEmail = CommunicationHelper(environment).users.getCurrentUserInfo(getAccessToken()).username
-            Log.v(TAG, "lastEmail: $_lastEmail")
+            var (email, name) = CommunicationHelper(environment).users.getCurrentUserInfo(getAccessToken()).let { it.username to it.profile?.fullName }
+            _lastName = name
+            _lastEmail = email
+            Log.v(TAG, "lastEmail: $_lastEmail, lastName: $name")
         }
 
         suspend fun Context.getIdToken(): String {
@@ -169,7 +181,7 @@ class PersistentData {
                 redirectUri
             ).apply {
                 setScope("openid email")
-                _lastName?.let {
+                _lastEmail?.let {
                     setLoginHint(it)
                 }
             }

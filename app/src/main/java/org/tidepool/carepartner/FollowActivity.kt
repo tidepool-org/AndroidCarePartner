@@ -7,7 +7,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.StringRes
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.*
@@ -28,8 +29,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -37,6 +41,7 @@ import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import org.tidepool.carepartner.backend.DataUpdater
+import org.tidepool.carepartner.backend.PersistentData
 import org.tidepool.carepartner.backend.PersistentData.Companion.authState
 import org.tidepool.carepartner.backend.PersistentData.Companion.logout
 import org.tidepool.carepartner.backend.PillData
@@ -47,7 +52,9 @@ import org.tidepool.carepartner.ui.theme.LoopFollowTheme
 import org.tidepool.carepartner.ui.theme.LoopTheme
 import org.tidepool.sdk.model.BloodGlucose.Trend
 import org.tidepool.sdk.model.BloodGlucose.Trend.*
+import org.tidepool.sdk.model.BloodGlucose.Units
 import org.tidepool.sdk.model.confirmations.Confirmation
+import org.tidepool.sdk.model.mgdl
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -64,10 +71,11 @@ import kotlin.time.Duration.Companion.nanoseconds
 
 class FollowActivity : ComponentActivity() {
     companion object {
+        
         const val TAG = "FollowActivity"
         val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
     }
-
+    
     private var future: ScheduledFuture<*>? = null
     private var updater: DataUpdater? = null
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,113 +113,157 @@ class FollowActivity : ComponentActivity() {
      * @param modifier The [Modifier] to apply
      */
     @Composable
-    fun FollowPill(pillData: PillData, mutableExpanded: MutableState<Boolean>, inMenu: Boolean, modifier: Modifier = Modifier) {
+    fun FollowPill(
+        pillData: PillData,
+        mutableExpanded: MutableState<Boolean>,
+        inMenu: Boolean,
+        modifier: Modifier = Modifier
+    ) {
         var expanded by mutableExpanded
-        AnimatedContent(expanded, label = "Card",
-            transitionSpec = {
-                val anim = (expandVertically { it } + fadeIn()).togetherWith(shrinkVertically { it } + fadeOut())
-                anim.using(SizeTransform(clip = false))
-            }) { cardExpanded ->
-            val outerCardColor = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            Card(onClick = { expanded = !expanded }, enabled = !inMenu, modifier = modifier, colors=outerCardColor) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    UserImage(pillData)
-                    Text(
-                        text = pillData.name.split(" ")[0],
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 20.sp,
-                        lineHeight = 24.sp
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        if (cardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "expand arrow"
-                    )
-                }
-                val innerCardColor = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+        
+        val outerCardColor =
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        Card(
+            onClick = { expanded = !expanded },
+            enabled = !inMenu,
+            modifier = modifier,
+            colors = outerCardColor
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UserImage(pillData)
+                Text(
+                    text = pillData.name.split(" ")[0],
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp
                 )
-                Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+                Spacer(modifier = Modifier.weight(1f))
+                val angle: Float by animateFloatAsState(
+                    if (expanded) 180f else 0f,
+                    label = "Card Arrow"
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "expand arrow",
+                    modifier = Modifier.rotate(angle)
+                )
+            }
+            val innerCardColor = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(Min)
-                    .width(Min)) {
-                    Card(colors = innerCardColor, modifier = Modifier
+                    .width(Min)
+            ) {
+                Card(
+                    colors = innerCardColor, modifier = Modifier
                         .padding(10.dp)
                         .width(120.dp)
-                        .fillMaxHeight()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
+                        .fillMaxHeight()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
                             .padding(5.dp)
-                            .fillMaxSize()) {
-                            Spacer(Modifier)
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier) {
-                                Text(
-                                    text = pillData.bg?.roundToInt()?.toString() ?: "---",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 30.sp,
-                                    lineHeight = 35.8.sp,
-                                    color = when (pillData.warningType) {
-                                        Warning -> LoopTheme.current.warning
-                                        Critical -> LoopTheme.current.critical
-                                        None -> MaterialTheme.colorScheme.onBackground
-                                    }
-                                )
-                                Text(
-                                    text = "mg/dL",
-                                    fontWeight = FontWeight.Normal,
-                                    fontSize = 11.sp,
-                                    color = Grey0300
-                                )
-                            }
-                            TrendArrow(pillData.trend, pillData.warningType)
-                        }
-                    }
-                    Image(
-                        painter = painterResource(id = R.drawable.loop_status_icon),
-                        contentDescription = "loop status",
-                        colorFilter = ColorFilter.tint(LoopTheme.current.loopStatus)
-                    )
-                    Card(colors = innerCardColor,modifier = Modifier
-                        .padding(10.dp)
-                        .width(120.dp)
-                        .fillMaxHeight()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier
-                            .padding(5.dp)
-                            .fillMaxSize()) {
+                            .fillMaxSize()
+                    ) {
+                        Spacer(Modifier)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                        ) {
                             Text(
-                                text = pillData.basalRate?.let {
-                                    String.format(Locale.getDefault(), "%1.2f", it)
+                                text = pillData.bg?.let {
+                                    when {
+                                        it < 40.mgdl -> "LOW"
+                                        it > 400.mgdl -> "HIGH"
+                                        else -> it.toString(PersistentData.unit)
+                                    }
                                 } ?: "---",
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 30.sp,
                                 lineHeight = 35.8.sp,
-                                color = LoopTheme.current.insulin
+                                color = when (pillData.warningType) {
+                                    Warning  -> LoopTheme.current.warning
+                                    Critical -> LoopTheme.current.critical
+                                    None     -> MaterialTheme.colorScheme.onBackground
+                                }
                             )
-                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
-                                text = "U/hr",
+                                text = PersistentData.unit.shorthand,
                                 fontWeight = FontWeight.Normal,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp,
+                                fontSize = 11.sp,
                                 color = Grey0300
                             )
                         }
+                        TrendArrow(pillData.trend, pillData.warningType)
                     }
                 }
-
-                if (cardExpanded) {
-                    Card(colors = innerCardColor, modifier = Modifier
+                Image(
+                    painter = painterResource(id = R.drawable.loop_status_icon),
+                    contentDescription = "loop status",
+                    colorFilter = ColorFilter.tint(LoopTheme.current.loopStatus)
+                )
+                Card(
+                    colors = innerCardColor, modifier = Modifier
                         .padding(10.dp)
-                        .fillMaxWidth()) {
+                        .width(120.dp)
+                        .fillMaxHeight()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .padding(5.dp)
+                            .fillMaxSize()
+                    ) {
+                        Text(
+                            text = pillData.basalRate?.let {
+                                String.format(Locale.getDefault(), "%1.2f", it)
+                            } ?: "---",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 30.sp,
+                            lineHeight = 35.8.sp,
+                            color = LoopTheme.current.insulin
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "U/hr",
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            color = Grey0300
+                        )
+                    }
+                }
+            }
+            AnimatedContent(expanded, label = "Card",
+                transitionSpec = {
+                    val anim =
+                        (expandVertically { it } + fadeIn()).togetherWith(shrinkVertically { it } + fadeOut())
+                    anim.using(SizeTransform(clip = false))
+                }) { cardExpanded ->
+                
+                if (cardExpanded) {
+                    Card(
+                        colors = innerCardColor, modifier = Modifier
+                            .padding(10.dp)
+                            .fillMaxWidth()
+                    ) {
                         DetailedInfo(
                             title = "Change in Glucose",
-                            name = "Reading",
+                            name = R.string.reading,
                             lastInstance = pillData.lastGlucose,
                             modifier = Modifier.padding(5.dp)
                         ) {
                             Row {
-                                val change = pillData.glucoseChange?.roundToInt()
                                 Text(
-                                    text = change?.let { if (it == 0) "0" else String.format(Locale.getDefault(),"%+d", it) } ?: "---",
+                                    text = pillData.glucoseChange?.toSignString(PersistentData.unit) ?: "---",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
@@ -221,8 +273,9 @@ class FollowActivity : ComponentActivity() {
                             }
                         }
                         HorizontalDivider()
-                        DetailedInfo(title = "Active Insulin",
-                            name = "Bolus",
+                        DetailedInfo(
+                            title = "Active Insulin",
+                            name = R.string.bolus,
                             lastInstance = pillData.lastBolus,
                             modifier = Modifier.padding(5.dp)
                         ) {
@@ -250,13 +303,14 @@ class FollowActivity : ComponentActivity() {
                         HorizontalDivider()
                         DetailedInfo(
                             title = "Active Carbs",
-                            name = "Entry",
+                            name = R.string.entry,
                             lastInstance = pillData.lastCarbEntry,
                             modifier = Modifier.padding(5.dp)
                         ) {
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
-                                    text = pillData.activeCarbs?.amount?.roundToInt()?.toString() ?: "---",
+                                    text = pillData.activeCarbs?.amount?.roundToInt()?.toString()
+                                        ?: "---",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
@@ -282,13 +336,13 @@ class FollowActivity : ComponentActivity() {
     fun TrendArrow(trend: Trend?, warningType: WarningType) {
         if (trend != null) {
             val id = remember(trend) {
-                when(trend) {
+                when (trend) {
                     rapidRise, rapidFall -> R.drawable.double_arrow_up
                     else                 -> R.drawable.flat_arrow
                 }
             }
             val rotation = remember(trend) {
-                when(trend) {
+                when (trend) {
                     constant     -> 0
                     slowFall     -> 45
                     slowRise     -> -45
@@ -299,15 +353,17 @@ class FollowActivity : ComponentActivity() {
                 }
             }
             val color = when (warningType) {
-                Warning -> LoopTheme.current.warning
+                Warning  -> LoopTheme.current.warning
                 Critical -> LoopTheme.current.critical
-                None -> LoopTheme.current.bloodGlucose
+                None     -> LoopTheme.current.bloodGlucose
             }
             
             Image(
                 painterResource(id),
                 "trend: $trend",
-                modifier = Modifier.rotate(rotation.toFloat()).padding(5.dp),
+                modifier = Modifier
+                    .rotate(rotation.toFloat())
+                    .padding(5.dp),
                 colorFilter = ColorFilter.tint(color),
             )
         } else {
@@ -325,7 +381,13 @@ class FollowActivity : ComponentActivity() {
      * @param display The display for the text that shows the amount.
      */
     @Composable
-    fun DetailedInfo(title: String, name: String, lastInstance: Instant?, modifier: Modifier = Modifier, display: @Composable () -> Unit) {
+    fun DetailedInfo(
+        title: String,
+        @StringRes name: Int,
+        lastInstance: Instant?,
+        modifier: Modifier = Modifier,
+        display: @Composable () -> Unit
+    ) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -337,29 +399,39 @@ class FollowActivity : ComponentActivity() {
                     fontWeight = FontWeight.Normal,
                     fontSize = 17.sp,
                     lineHeight = 20.29.sp,
-                    modifier = Modifier.padding(start=15.dp, top=15.dp)
+                    modifier = Modifier.padding(start = 15.dp, top = 15.dp)
                 )
-                var minutesPast by remember(lastInstance) { mutableStateOf(lastInstance?.until(Instant.now())) }
-                val text = minutesPast?.let { diff ->
-                    if (diff >= 1.days) {
-                        val days = diff.inWholeHours
-                        "$days day${if (days != 1L) "s" else ""} ago"
-                    } else if (diff >= 1.hours) {
-                        val hours = diff.inWholeHours
-                        "$hours hour${if (hours != 1L) "s" else ""} ago"
-                    } else {
-                        val minutes = diff.inWholeMinutes
-                        "$minutes min${if (minutes != 1L) "s" else ""} ago"
-                    }
-                    
-                } ?: ""
+                var minutesPast by remember(lastInstance) {
+                    mutableStateOf(
+                        lastInstance?.until(
+                            Instant.now()
+                        )
+                    )
+                }
+                
                 Text(
-                    text = "Last $name: $text",
+                    text = minutesPast?.let { diff ->
+                        when {
+                            (diff > 1.days)  -> diff.inWholeDays to R.plurals.days
+                            (diff > 1.hours) -> diff.inWholeHours to R.plurals.hours
+                            else             -> diff.inWholeMinutes to R.plurals.minutes
+                        }.let { (quantity, res) ->
+                            stringResource(
+                                R.string.last_text,
+                                stringResource(name),
+                                quantity,
+                                pluralStringResource(
+                                    id = res,
+                                    count = quantity.toInt()
+                                )
+                            )
+                        }
+                    } ?: stringResource(R.string.empty_last_text, stringResource(name)),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     lineHeight = 16.71.sp,
                     color = Color(0xFF92949C),
-                    modifier = Modifier.padding(start=15.dp, top=8.dp, bottom=15.dp)
+                    modifier = Modifier.padding(start = 15.dp, top = 8.dp, bottom = 15.dp)
                 )
                 LaunchedEffect(key1 = minutesPast) {
                     lastInstance?.let { last ->
@@ -406,7 +478,7 @@ class FollowActivity : ComponentActivity() {
         val mutableInvitations = remember { mutableStateOf(arrayOf<Confirmation>()) }
         val invitations by mutableInvitations
         var menuVisible by remember { mutableStateOf(false) }
-
+        
         Box {
             Scaffold(
                 modifier = modifier,
@@ -423,12 +495,11 @@ class FollowActivity : ComponentActivity() {
                                 .padding(horizontal = 5.dp)
                         )
                     }, title = {
-                        Text("Following")
+                        Text(stringResource(R.string.following))
                     })
                 }) { innerPadding ->
                 val states = remember { HashMap<String, MutableState<Boolean>>() }
                 var closedInitial by remember { mutableStateOf(false) }
-                var toggle by remember { mutableStateOf(true) }
                 LazyColumn(
                     horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier
                         .fillMaxWidth()
@@ -450,24 +521,22 @@ class FollowActivity : ComponentActivity() {
                     }
                 }
             }
-
+            
             AnimatedVisibility(
                 visible = menuVisible,
-                enter = slideInHorizontally {
-                    -it
+                enter = slideInVertically {
+                    it
                 },
-                exit = slideOutHorizontally {
-                    -it
+                exit = slideOutVertically {
+                    it
                 }
             ) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .clickable(enabled = menuVisible) { menuVisible = false })
-                Menu()
+                Menu {
+                    menuVisible = false
+                }
             }
         }
-
+        
         LaunchedEffect(true) {
             updater = DataUpdater(
                 mutableIds,
@@ -480,66 +549,158 @@ class FollowActivity : ComponentActivity() {
         }
     }
     
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun Menu(modifier: Modifier = Modifier) {
-        Row(Modifier.clickable(false) { }) {
-            Column(
-                modifier = modifier
-                    .background(MaterialTheme.colorScheme.background)
-                    .fillMaxHeight()
-                    .width(Min), horizontalAlignment = Alignment.Start
-            ) {
-                Text(
-                    text = "Menu", fontSize = 24.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier
-                        .padding(110.dp, 15.dp)
-                        .align(Alignment.CenterHorizontally)
-                )
-                val menuOptionModifier = Modifier.padding(5.dp, 3.dp)
+    fun Menu(modifier: Modifier = Modifier, close: () -> Unit) {
+        Scaffold(
+            topBar = {
+                Column {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            Text(
+                                text = stringResource(R.string.my_account), fontSize = 24.sp,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier
+                                    .padding(vertical = 15.dp)
+                            )
+                        },
+                        actions = {
+                            TextButton(
+                                onClick = {
+                                    close()
+                                }
+                            ) {
+                                Text(stringResource(R.string.done))
+                            }
+                        }
+                    )
+                    HorizontalDivider()
+                }
+            },
+            modifier = modifier
+                .background(MaterialTheme.colorScheme.background)
+                .fillMaxSize(),
+        ) { internalPadding ->
+            Column(modifier = Modifier.padding(internalPadding)) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        PersistentData.lastName ?: "User",
+                        fontWeight = FontWeight.W600,
+                        fontSize = 28.sp,
+                        modifier = Modifier.padding(20.dp)
+                    )
+                    Icon(
+                        Icons.Filled.AccountCircle,
+                        "User Icon",
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .size(DpSize(33.dp, 33.dp))
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.Top,
+                    modifier = modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        PersistentData.lastEmail ?: "wavedashing@madeline.celeste.com",
+                        fontWeight = FontWeight.W400,
+                        fontSize = 17.sp,
+                        modifier = Modifier.padding(start = 20.dp, top = 0.dp)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
                 HorizontalDivider()
-                Text(
-                    "Manage Account",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = menuOptionModifier
-                )
-                HorizontalDivider()
-                Text(
-                    "Help Center",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = menuOptionModifier
-                )
-                HorizontalDivider()
-                Text(
-                    text = "Logout",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = menuOptionModifier
-                        .clickable { future?.cancel(true); logout() }
-                        .fillMaxWidth()
-                )
-                HorizontalDivider()
-
+                var dialogOpen by remember { mutableStateOf(false) }
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            dialogOpen = true
+                        },
+                        colors = LoopTheme.current.buttonColors,
+                        modifier = Modifier
+                            .padding(horizontal = 15.dp, vertical = 10.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(R.string.logout_button_text)
+                        )
+                    }
+                }
+                if (dialogOpen) {
+                    AlertDialog(
+                        title = {
+                            Text(stringResource(R.string.logout_prompt))
+                        },
+                        text = {
+                            Text(stringResource(R.string.logout_message))
+                        },
+                        onDismissRequest = {
+                            dialogOpen = false
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    future?.cancel(true)
+                                    logout()
+                                }
+                            ) {
+                                Text(
+                                    stringResource(R.string.logout_confirm),
+                                    color = LoopTheme.current.critical
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    dialogOpen = false
+                                }
+                            ) {
+                                Text(stringResource(R.string.logout_cancel))
+                            }
+                        }
+                    )
+                }
             }
-            VerticalDivider()
         }
     }
-
+    
     @Preview(name = "Light Mode", showBackground = true, group = "mockup")
-    @Preview(name = "Dark Mode", showBackground = false, group = "mockup", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Preview(
+        name = "Dark Mode",
+        showBackground = false,
+        group = "mockup",
+        uiMode = Configuration.UI_MODE_NIGHT_YES
+    )
     @Composable
     fun MenuPreview() {
         LoopFollowTheme {
-            Menu()
+            Menu {
+            
+            }
         }
     }
-
+    
     @Preview(name = "Light Mode", showBackground = false, group = "component")
-    @Preview(name = "Dark Mode", showBackground = false, group = "dark mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Preview(
+        name = "Dark Mode",
+        showBackground = false,
+        group = "dark mode",
+        uiMode = Configuration.UI_MODE_NIGHT_YES
+    )
     @Composable
     fun FollowerPreview() {
         LoopFollowTheme {
             FollowPill(
-                PillData(130.0),
+                PillData(130.mgdl),
                 mutableExpanded = remember { mutableStateOf(false) },
                 inMenu = false,
             )
@@ -547,7 +708,12 @@ class FollowActivity : ComponentActivity() {
     }
     
     @Preview(name = "Light Mode", showBackground = false, group = "component")
-    @Preview(name = "Dark Mode", showBackground = false, group = "dark mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Preview(
+        name = "Dark Mode",
+        showBackground = false,
+        group = "dark mode",
+        uiMode = Configuration.UI_MODE_NIGHT_YES
+    )
     @Composable
     fun ExpandedFollowerPreview() {
         LoopFollowTheme {
@@ -556,11 +722,11 @@ class FollowActivity : ComponentActivity() {
             val lastEntry = Instant.now().minus(1L, ChronoUnit.HOURS)
             FollowPill(
                 PillData(
-                    130.0,
+                    130.mgdl,
                     lastGlucose = lastReading,
                     lastBolus = lastBolus,
                     lastCarbEntry = lastEntry,
-                    glucoseChange = -5.0,
+                    glucoseChange = (-5).mgdl,
                     trend = rapidRise,
                     warningType = Warning
                 ),

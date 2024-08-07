@@ -5,8 +5,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
@@ -27,7 +29,7 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = White,
     secondary = PurpleGrey40,
     tertiary = Pink40,
-
+    
     /* Other default colors to override
     background = Color(0xFFFFFBFE),
     surface = Color(0xFFFFFBFE),
@@ -46,7 +48,8 @@ private val LightLoopTheme = LoopTheme(
     insulin = Loop_Light_Insulin,
     carbohydrates = Loop_Light_Carbohydrates,
     bloodGlucose = Loop_Light_BloodGlucose,
-    loopStatus = Loop_Light_Status
+    loopStatus = Loop_Light_Status,
+    White
 )
 
 private val DarkLoopTheme = LoopTheme(
@@ -56,7 +59,8 @@ private val DarkLoopTheme = LoopTheme(
     insulin = Loop_Dark_Insulin,
     carbohydrates = Loop_Dark_Carbohydrates,
     bloodGlucose = Loop_Dark_BloodGlucose,
-    loopStatus = Loop_Dark_Status
+    loopStatus = Loop_Dark_Status,
+    onPrimaryAccent = Color.Black
 )
 
 @Composable
@@ -72,8 +76,8 @@ fun LoopFollowTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme                                                      -> DarkColorScheme
+        else                                                           -> LightColorScheme
     }
     val loopTheme = if (darkTheme) {
         DarkLoopTheme
@@ -98,11 +102,24 @@ data class LoopTheme(
     val insulin: Color,
     val carbohydrates: Color,
     val bloodGlucose: Color,
-    val loopStatus: Color
+    val loopStatus: Color,
+    val onPrimaryAccent: Color
 ) {
+    
+    val buttonColors: ButtonColors by lazy {
+        ButtonColors(
+            primaryAccent,
+            onPrimaryAccent,
+            primaryAccent.copy(alpha = 0.5f),
+            onPrimaryAccent.copy(alpha = 0.5f)
+        )
+    }
+    
     companion object {
+        
         val current: LoopTheme
             @Composable
+            @ReadOnlyComposable
             get() = LocalLoopTheme.current
     }
 }

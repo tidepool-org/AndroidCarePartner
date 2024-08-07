@@ -1,3 +1,34 @@
 <resources>
-    <string name="app_name">Loop Follow</string>
+    <string name="app_name">Loop Shadow</string>
+
+    <string name="following">Following</string>
+    <!--Detailed Info-->
+    <string name="last_text">Last %1s: %2d %3s ago</string>
+    <string name="empty_last_text">Last %s:</string>
+    <string name="reading">Reading</string>
+    <string name="bolus">Bolus</string>
+    <string name="entry">Entry</string>
+
+    <plurals name="minutes">
+        <item quantity="one">min</item>
+        <item quantity="other">mins</item>
+    </plurals>
+    <plurals name="hours">
+        <item quantity="one">hour</item>
+        <item quantity="other">hours</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+
+    <!-- Menu -->
+    <string name="my_account">My Account</string>
+    <string name="done">Done</string>
+    <!--logout-->
+    <string name="logout_button_text">Log out of Tidepool Shadow</string>
+    <string name="logout_prompt">Log out?</string>
+    <string name="logout_message">By logging out, you will no longer be able to view the Tidepool Loop activity of people you care for.</string>
+    <string name="logout_cancel">Cancel</string>
+    <string name="logout_confirm">Log Out</string>
 </resources>
