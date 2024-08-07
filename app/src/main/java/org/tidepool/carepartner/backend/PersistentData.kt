@@ -130,6 +130,7 @@ class PersistentData {
             return suspendCancellableCoroutine { continuation ->
                 val authService by lazy { AuthorizationService(this) }
                 _authState.performActionWithFreshTokens(authService) { accessToken, _, ex ->
+                    Log.v(TAG, "Fresh Token callback called")
                     if (ex != null) {
                         continuation.resumeWithException(ex)
                     } else {

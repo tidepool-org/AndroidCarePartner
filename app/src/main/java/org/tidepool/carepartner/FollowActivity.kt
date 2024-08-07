@@ -24,6 +24,7 @@ import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
@@ -39,7 +40,13 @@ import org.tidepool.carepartner.backend.DataUpdater
 import org.tidepool.carepartner.backend.PersistentData.Companion.authState
 import org.tidepool.carepartner.backend.PersistentData.Companion.logout
 import org.tidepool.carepartner.backend.PillData
-import org.tidepool.carepartner.ui.theme.*
+import org.tidepool.carepartner.backend.WarningType
+import org.tidepool.carepartner.backend.WarningType.*
+import org.tidepool.carepartner.ui.theme.Grey0300
+import org.tidepool.carepartner.ui.theme.LoopFollowTheme
+import org.tidepool.carepartner.ui.theme.LoopTheme
+import org.tidepool.sdk.model.BloodGlucose.Trend
+import org.tidepool.sdk.model.BloodGlucose.Trend.*
 import org.tidepool.sdk.model.confirmations.Confirmation
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -50,6 +57,7 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
@@ -134,13 +142,18 @@ class FollowActivity : ComponentActivity() {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
                             .padding(5.dp)
                             .fillMaxSize()) {
-                            Spacer(modifier = Modifier)
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            Spacer(Modifier)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier) {
                                 Text(
                                     text = pillData.bg?.roundToInt()?.toString() ?: "---",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 30.sp,
-                                    lineHeight = 35.8.sp
+                                    lineHeight = 35.8.sp,
+                                    color = when (pillData.warningType) {
+                                        Warning -> LoopTheme.current.warning
+                                        Critical -> LoopTheme.current.critical
+                                        None -> MaterialTheme.colorScheme.onBackground
+                                    }
                                 )
                                 Text(
                                     text = "mg/dL",
@@ -149,6 +162,7 @@ class FollowActivity : ComponentActivity() {
                                     color = Grey0300
                                 )
                             }
+                            TrendArrow(pillData.trend, pillData.warningType)
                         }
                     }
                     Image(
@@ -201,7 +215,8 @@ class FollowActivity : ComponentActivity() {
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
-                                    color = LoopTheme.current.bloodGlucose
+                                    color = LoopTheme.current.bloodGlucose,
+                                    modifier = Modifier.padding(end = 15.dp)
                                 )
                             }
                         }
@@ -228,7 +243,7 @@ class FollowActivity : ComponentActivity() {
                                     fontSize = 16.sp,
                                     lineHeight = 19.09.sp,
                                     color = LoopTheme.current.insulin,
-                                    modifier = Modifier.padding(start = 2.dp, end = 5.dp)
+                                    modifier = Modifier.padding(start = 2.dp, end = 15.dp)
                                 )
                             }
                         }
@@ -245,7 +260,7 @@ class FollowActivity : ComponentActivity() {
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp,
                                     lineHeight = 28.64.sp,
-                                    color = LoopTheme.current.carbohydrates
+                                    color = LoopTheme.current.carbohydrates,
                                 )
                                 Text(
                                     text = "g",
@@ -253,13 +268,50 @@ class FollowActivity : ComponentActivity() {
                                     fontSize = 16.sp,
                                     lineHeight = 19.09.sp,
                                     color = LoopTheme.current.carbohydrates,
-                                    modifier = Modifier.padding(start = 2.dp, end = 5.dp)
+                                    modifier = Modifier.padding(start = 2.dp, end = 15.dp),
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+    
+    @Composable
+    fun TrendArrow(trend: Trend?, warningType: WarningType) {
+        if (trend != null) {
+            val id = remember(trend) {
+                when(trend) {
+                    rapidRise, rapidFall -> R.drawable.double_arrow_up
+                    else                 -> R.drawable.flat_arrow
+                }
+            }
+            val rotation = remember(trend) {
+                when(trend) {
+                    constant     -> 0
+                    slowFall     -> 45
+                    slowRise     -> -45
+                    moderateFall -> 90
+                    moderateRise -> -90
+                    rapidFall    -> 180
+                    rapidRise    -> 0
+                }
+            }
+            val color = when (warningType) {
+                Warning -> LoopTheme.current.warning
+                Critical -> LoopTheme.current.critical
+                None -> LoopTheme.current.bloodGlucose
+            }
+            
+            Image(
+                painterResource(id),
+                "trend: $trend",
+                modifier = Modifier.rotate(rotation.toFloat()).padding(5.dp),
+                colorFilter = ColorFilter.tint(color),
+            )
+        } else {
+            Spacer(Modifier)
         }
     }
     
@@ -284,11 +336,15 @@ class FollowActivity : ComponentActivity() {
                     text = title,
                     fontWeight = FontWeight.Normal,
                     fontSize = 17.sp,
-                    lineHeight = 20.29.sp
+                    lineHeight = 20.29.sp,
+                    modifier = Modifier.padding(start=15.dp, top=15.dp)
                 )
                 var minutesPast by remember(lastInstance) { mutableStateOf(lastInstance?.until(Instant.now())) }
                 val text = minutesPast?.let { diff ->
-                    if (diff >= 1.hours) {
+                    if (diff >= 1.days) {
+                        val days = diff.inWholeHours
+                        "$days day${if (days != 1L) "s" else ""} ago"
+                    } else if (diff >= 1.hours) {
                         val hours = diff.inWholeHours
                         "$hours hour${if (hours != 1L) "s" else ""} ago"
                     } else {
@@ -302,15 +358,18 @@ class FollowActivity : ComponentActivity() {
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     lineHeight = 16.71.sp,
-                    color = Color(0xFF92949C)
+                    color = Color(0xFF92949C),
+                    modifier = Modifier.padding(start=15.dp, top=8.dp, bottom=15.dp)
                 )
                 LaunchedEffect(key1 = minutesPast) {
                     lastInstance?.let { last ->
                         val timeSince = last.until(Instant.now())
-                        val toDelay = if (timeSince <= 1.hours) {
-                            (timeSince.inWholeMinutes + 1).minutes - timeSince
-                        } else {
+                        val toDelay = if (timeSince >= 1.days) {
+                            (timeSince.inWholeDays + 1).days - timeSince
+                        } else if (timeSince >= 1.hours) {
                             (timeSince.inWholeHours + 1).hours - timeSince
+                        } else {
+                            (timeSince.inWholeMinutes + 1).minutes - timeSince
                         }
                         delay(toDelay)
                         minutesPast = last.until(Instant.now())
@@ -482,7 +541,7 @@ class FollowActivity : ComponentActivity() {
             FollowPill(
                 PillData(130.0),
                 mutableExpanded = remember { mutableStateOf(false) },
-                inMenu = false
+                inMenu = false,
             )
         }
     }
@@ -501,7 +560,9 @@ class FollowActivity : ComponentActivity() {
                     lastGlucose = lastReading,
                     lastBolus = lastBolus,
                     lastCarbEntry = lastEntry,
-                    glucoseChange = -5.0
+                    glucoseChange = -5.0,
+                    trend = rapidRise,
+                    warningType = Warning
                 ),
                 mutableExpanded = remember { mutableStateOf(true) },
                 inMenu = false

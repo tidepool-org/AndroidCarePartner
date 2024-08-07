@@ -10,9 +10,11 @@ import kotlinx.coroutines.flow.map
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
 import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
 import org.tidepool.carepartner.backend.PersistentData.Companion.writeToDisk
+import org.tidepool.carepartner.backend.WarningType.*
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.requests.Data.CommaSeparatedArray
 import org.tidepool.sdk.model.BloodGlucose
+import org.tidepool.sdk.model.BloodGlucose.Trend
 import org.tidepool.sdk.model.confirmations.Confirmation
 import org.tidepool.sdk.model.data.*
 import org.tidepool.sdk.model.data.BasalAutomatedData.DeliveryType
@@ -80,7 +82,11 @@ class DataUpdater(
         )
     }
     
-    private fun getGlucose(result: Array<BaseData>): Triple<Double?, Double?, Instant?> {
+    private fun getGlucose(result: Array<BaseData>): GlucoseData {
+        // >400 -> critical
+        // 250..400 -> warning
+        // 55..70 -> warning
+        // < 55 -> critical
         val dataArr = result.filterIsInstance<ContinuousGlucoseData>().sortedByDescending { value ->
             value.time ?: Instant.MIN
         }
@@ -95,6 +101,16 @@ class DataUpdater(
             }
         }
         
+        val warningType = mgdl?.let { value ->
+            when {
+                value > 400.0 -> Critical
+                value in 250.0..<400.0 -> Warning
+                value in 55.0..<70.0 -> Warning
+                value < 55.0 -> Critical
+                else -> None
+            }
+        } ?: None
+        
         val lastMgdl = lastData?.let { glucoseData ->
             glucoseData.value?.let {
                 glucoseData.units?.convert(it, BloodGlucose.Units.milligramsPerDeciliter) ?: it
@@ -107,8 +123,16 @@ class DataUpdater(
             }
         }
         
-        return Triple(mgdl, diff, data?.time)
+        return GlucoseData(mgdl, diff, data?.time, data?.trend, warningType)
     }
+    
+    private data class GlucoseData(
+        val mgdl: Double?,
+        val diff: Double?,
+        val time: Instant?,
+        val trend: Trend?,
+        val warningType: WarningType = None
+    )
     
     private fun getBasalResult(result: Array<BaseData>): Double? {
         val basalInfo = result.filterIsInstance<BasalAutomatedData>()
@@ -157,6 +181,8 @@ class DataUpdater(
                 var activeCarbs: CarbsOnBoard? = null
                 var activeInsulin: InsulinOnBoard? = null
                 var basalRate: Double? = null
+                var warningType: WarningType = None
+                var trend: Trend? = null
                 Log.v(TAG, "Getting data for user $name ($id)")
                 val longJob = launch {
                     val startDate = Instant.now().minus(3, ChronoUnit.DAYS)
@@ -185,10 +211,12 @@ class DataUpdater(
                     val glucoseData = async { getGlucose(result) }
                     val basalData = async { getBasalResult(result) }
                     val dosingData = async { getDosingData(result) }
-                    val (newMgdl, newDiff, newLastReading) = glucoseData.await()
+                    val (newMgdl, newDiff, newLastReading, newTrend, newWarningType) = glucoseData.await()
                     mgdl = newMgdl
                     diff = newDiff
                     lastReading = newLastReading
+                    trend = newTrend
+                    warningType = newWarningType
                     val (newActiveCarbs, newActiveInsulin) = dosingData.await()
                     activeCarbs = newActiveCarbs
                     activeInsulin = newActiveInsulin
@@ -207,7 +235,9 @@ class DataUpdater(
                     activeInsulin,
                     lastReading,
                     lastBolus,
-                    lastCarbEntry
+                    lastCarbEntry,
+                    trend,
+                    warningType
                 )
             }
             
