@@ -19,6 +19,7 @@ class EnvironmentTypeAdapter : TypeAdapterFactory {
     override fun <T : Any?> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
         if (Environment::class.java.isAssignableFrom(type.rawType)) {
             Log.v(TAG, "Creating adapter for $type")
+            @Suppress("UNCHECKED_CAST")
             return customTypeAdapter as TypeAdapter<T>
         }
         return null

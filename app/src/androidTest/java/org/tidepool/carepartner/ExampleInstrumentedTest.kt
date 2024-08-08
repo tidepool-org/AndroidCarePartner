@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the App under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("org.tidepool.loopfollow", appContext.packageName)
+        assertEquals("org.tidepool.carepartner", appContext.packageName)
     }
 }

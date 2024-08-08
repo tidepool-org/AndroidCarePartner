@@ -6,25 +6,25 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import net.openid.appauth.AuthState
-import net.openid.appauth.AuthorizationRequest
-import net.openid.appauth.AuthorizationService
-import net.openid.appauth.AuthorizationServiceConfiguration
-import net.openid.appauth.EndSessionRequest
-import net.openid.appauth.ResponseTypeValues
+import kotlinx.coroutines.withTimeout
+import net.openid.appauth.*
 import org.tidepool.carepartner.FollowActivity
 import org.tidepool.carepartner.MainActivity
+import org.tidepool.carepartner.backend.jank.retrieveConfiguration
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.Environment
 import org.tidepool.sdk.Environments
 import org.tidepool.sdk.model.BloodGlucose.Units
+import org.tidepool.sdk.model.confirmations.Confirmation
 import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import kotlin.time.Duration.Companion.seconds
 
 class PersistentData {
     private class DataHolder {
@@ -34,6 +34,7 @@ class PersistentData {
         var environment: Environment = Environments.Production
         var unit: Units = Units.milligramsPerDeciliter
     }
+    
     companion object {
         private val redirectUri = Uri.parse("org.tidepool.carepartner://tidepool_service_callback")
         private const val FILENAME = "persistent-data"
@@ -89,47 +90,53 @@ class PersistentData {
         }
 
         private const val TAG = "PersistentData"
-
-        fun renewAuthState() {
-            val env by lazy(this::environment)
-            val uriString = "${env.auth.url}/realms/${env.envCode}/.well-known/openid-configuration"
-            Log.v(TAG, "URI: \"${uriString}\"")
-            AuthorizationServiceConfiguration.fetchFromUrl(
-                Uri.parse(uriString)
-            ) { serviceConfiguration, ex ->
-                if (ex != null) {
-                    _authState = AuthState()
-                    throw ex
-                }
-                _authState = AuthState(serviceConfiguration!!)
+        
+        private suspend fun getAuthState() {
+            withTimeout(15.seconds) {
+                val env = environment
+                val uriString = "${env.auth.url}/realms/${env.envCode}/.well-known/openid-configuration"
+                Log.v(TAG, "URI: \"${uriString}\"")
+                _authState = AuthState(retrieveConfiguration(Uri.parse(uriString)))
             }
         }
-
+        
         fun Context.logout() {
             Log.v(TAG, "logout...")
             _lastEmail = null
             _lastName = null
-            
             val authService = AuthorizationService(this)
-            val endSessionRequest = EndSessionRequest.Builder(_authState.authorizationServiceConfiguration ?: throw NullPointerException("No configuration"))
-                .setIdTokenHint(_authState.idToken)
-                .setPostLogoutRedirectUri(redirectUri)
-                .build()
-
-            authService.performEndSessionRequest(
-                endSessionRequest,
-                PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
-                PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-            )
+            _authState.authorizationServiceConfiguration?.let {
+                val endSessionRequest = EndSessionRequest.Builder(it)
+                    .setIdTokenHint(_authState.idToken)
+                    .setPostLogoutRedirectUri(redirectUri)
+                    .build()
+                
+                authService.performEndSessionRequest(
+                    endSessionRequest,
+                    PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
+                    PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+                )
+            }
             _authState = AuthState()
             writeToDisk()
         }
+        
+        /**
+         * Thrown if there is no last authorization response.
+         * This should only be thrown if authorization isn't performed in the right order
+         */
+        class NoAuthorizationException : Exception("No Authorization Response")
 
         private suspend fun Context.exchangeAuthCode() = suspendCoroutine { continuation ->
-            val resp = authState.lastAuthorizationResponse ?: throw NullPointerException("No Authorization Response")
+            val resp = authState.lastAuthorizationResponse ?: throw NoAuthorizationException()
             AuthorizationService(this).performTokenRequest(resp.createTokenExchangeRequest()) { newResp, ex ->
                 _authState.update(newResp, ex)
-                continuation.resume(Unit)
+                if (ex != null) {
+                    Log.e(TAG,"exchangeAuthCode(): ${ex.message ?: "No Exception Message"}")
+                    continuation.resumeWithException(ex)
+                } else {
+                    continuation.resume(Unit)
+                }
             }
         }
 
@@ -164,6 +171,7 @@ class PersistentData {
             return suspendCancellableCoroutine { continuation ->
                 _authState.performActionWithFreshTokens(AuthorizationService(this)) { _, idToken, ex ->
                     if (ex != null) {
+                        Log.e(TAG,"getIdToken(): ${ex.message ?: "No Exception Message"}")
                         continuation.resumeWithException(ex)
                     } else {
                         continuation.resume(idToken!!)
@@ -172,15 +180,15 @@ class PersistentData {
             }
         }
 
-        fun getAuthRequestBuilder(): AuthorizationRequest.Builder {
-            renewAuthState()
-            return AuthorizationRequest.Builder(
-                _authState.authorizationServiceConfiguration ?: throw NullPointerException("No Configuration"),
+        fun getAuthRequestBuilder(): AuthorizationRequest.Builder = runBlocking {
+            getAuthState()
+            return@runBlocking AuthorizationRequest.Builder(
+                _authState.authorizationServiceConfiguration ?: throw AssertionError("No Configuration"),
                 "tidepool-carepartner-android",
                 ResponseTypeValues.CODE,
                 redirectUri
             ).apply {
-                setScope("openid email")
+                setScope("openid email offline_access")
                 _lastEmail?.let {
                     setLoginHint(it)
                 }

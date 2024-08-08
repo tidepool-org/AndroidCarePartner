@@ -10,6 +10,9 @@ activityCompose = "1.8.0"
 composeBom = "2024.04.01"
 appauth = "0.11.1"
 lifecycleViewmodelCompose = "2.8.3"
+uiTestJunit4 = "1.6.8"
+uiTestManifest = "1.6.8"
+uiTestJunit4Android = "1.6.8"
 
 [libraries]
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name= "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
@@ -28,6 +31,9 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "uiTestJunit4" }
+ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestManifest" }
+androidx-ui-test-junit4-android = { group = "androidx.compose.ui", name = "ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

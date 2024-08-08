@@ -1,9 +1,11 @@
 <resources>
     <string name="app_name">Loop Shadow</string>
 
+    <string name="log_in">Log In</string>
+
     <string name="following">Following</string>
     <!--Detailed Info-->
-    <string name="last_text">Last %1s: %2d %3s ago</string>
+    <string name="last_text" formatted="false">Last %s: %d %s ago</string>
     <string name="empty_last_text">Last %s:</string>
     <string name="reading">Reading</string>
     <string name="bolus">Bolus</string>
@@ -22,9 +24,22 @@
         <item quantity="other">days</item>
     </plurals>
 
+    <!--Error Management-->
+    <string name="error_occurred">An Error Occurred!</string>
+    <string name="error_acknowledge">Acknowledge</string>
+
     <!-- Menu -->
     <string name="my_account">My Account</string>
     <string name="done">Done</string>
+    <string name="unit_select">Glucose Units:</string>
+
+    <!-- Invitations -->
+    <string name="no_invitations">Invitations</string>
+    <string name="invitations">Invitations (%d)</string>
+    <string name="no_invitations_message">You have no pending invites yet</string>
+    <string name="check_invites">Check for new invites</string>
+    <string name="invite_message">%s invites you to start following them.</string>
+
     <!--logout-->
     <string name="logout_button_text">Log out of Tidepool Shadow</string>
     <string name="logout_prompt">Log out?</string>
