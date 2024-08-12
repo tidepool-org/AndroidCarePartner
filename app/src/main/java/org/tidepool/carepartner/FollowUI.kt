@@ -968,14 +968,14 @@ class FollowUI : DefaultLifecycleObserver {
                         PersistentData.lastEmail ?: "wavedashing@madeline.celeste.com",
                         fontWeight = FontWeight.W400,
                         fontSize = 17.sp,
-                        modifier = Modifier.padding(start = 20.dp, top = 0.dp, bottom = 5.dp)
+                        modifier = Modifier.padding(start = 20.dp, top = 0.dp, bottom = 15.dp)
                     )
                 }
                 HorizontalDivider()
                 Text(
                     stringResource(R.string.unit_select),
                     modifier = Modifier
-                        .padding(vertical = 5.dp)
+                        .padding(top=15.dp, bottom = 5.dp)
                         .padding(start = 20.dp)
                 )
                 Row(
