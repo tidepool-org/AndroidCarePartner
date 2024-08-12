@@ -431,6 +431,7 @@ class FollowUI : DefaultLifecycleObserver {
             val innerCardColor = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             )
+            val cardWidth = 140.dp
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -442,14 +443,14 @@ class FollowUI : DefaultLifecycleObserver {
                 Card(
                     colors = innerCardColor, modifier = Modifier
                         .padding(10.dp)
-                        .width(120.dp)
-                        .fillMaxHeight()
+                        .width(cardWidth)
+                        .fillMaxHeight(),
+                    shape = ButtonDefaults.shape
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.SpaceAround,
                         modifier = Modifier
-                            .padding(5.dp)
                             .fillMaxSize()
                     ) {
                         Spacer(Modifier)
@@ -472,7 +473,8 @@ class FollowUI : DefaultLifecycleObserver {
                                     Warning  -> LoopTheme.current.warning
                                     Critical -> LoopTheme.current.critical
                                     None     -> MaterialTheme.colorScheme.onBackground
-                                }
+                                },
+                                modifier = Modifier.padding(top=5.dp)
                             )
                             Text(
                                 text = PersistentData.unit.shorthand,
@@ -492,8 +494,9 @@ class FollowUI : DefaultLifecycleObserver {
                 Card(
                     colors = innerCardColor, modifier = Modifier
                         .padding(10.dp)
-                        .width(120.dp)
-                        .fillMaxHeight()
+                        .width(cardWidth)
+                        .fillMaxHeight(),
+                    shape = ButtonDefaults.shape
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -644,7 +647,7 @@ class FollowUI : DefaultLifecycleObserver {
                 "trend: $trend",
                 modifier = Modifier
                     .rotate(rotation.toFloat())
-                    .padding(5.dp),
+                    .padding(start = 5.dp, end = 10.dp),
                 colorFilter = ColorFilter.tint(color),
             )
         } else {
