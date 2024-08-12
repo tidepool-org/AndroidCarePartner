@@ -36,9 +36,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.OnLifecycleEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -55,7 +53,6 @@ import org.tidepool.carepartner.backend.WarningType.*
 import org.tidepool.carepartner.ui.theme.Grey0300
 import org.tidepool.carepartner.ui.theme.LoopFollowTheme
 import org.tidepool.carepartner.ui.theme.LoopTheme
-import org.tidepool.sdk.model.BloodGlucose
 import org.tidepool.sdk.model.BloodGlucose.Trend
 import org.tidepool.sdk.model.BloodGlucose.Trend.*
 import org.tidepool.sdk.model.BloodGlucose.Units
@@ -64,6 +61,9 @@ import org.tidepool.sdk.model.data.DosingDecisionData
 import org.tidepool.sdk.model.metadata.Profile
 import org.tidepool.sdk.model.mgdl
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle.SHORT
 import java.util.Locale
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -78,7 +78,7 @@ import kotlin.time.Duration.Companion.seconds
 class FollowUI : DefaultLifecycleObserver {
     
     internal var future: ScheduledFuture<*>? = null
-    var updater: DataUpdater? = null
+    private var updater: DataUpdater? = null
     
     private fun startDataCollection() {
         Log.v("FollowActivity", "Starting Data Collection")
@@ -107,17 +107,19 @@ class FollowUI : DefaultLifecycleObserver {
     @Composable
     fun Invitations(
         mutableInvitations: MutableState<Array<Confirmation>>,
-        userNumber: MutableIntState
+        userNumber: MutableIntState,
+        isExpanded: MutableState<Boolean> = mutableStateOf(false),
+        modifier: Modifier = Modifier
     ) {
         val invitations by mutableInvitations
-        var expanded by remember { mutableStateOf(false) }
+        var expanded by isExpanded
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .background(MaterialTheme.colorScheme.background)
                 .clickable(!expanded) {
                     expanded = true
                 }
-                .padding(bottom = 20.dp),
+                .padding(bottom = 5.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             HorizontalDivider()
@@ -347,7 +349,7 @@ class FollowUI : DefaultLifecycleObserver {
                         )
                     )
                 },
-                remember { mutableIntStateOf(1) }
+                remember { mutableIntStateOf(1) },
             )
         }
     }
@@ -377,28 +379,55 @@ class FollowUI : DefaultLifecycleObserver {
             modifier = modifier,
             colors = outerCardColor
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 10.dp, start = 5.dp)
-            ) {
-                UserImage(pillData)
-                Text(
-                    text = pillData.name.split(" ")[0],
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                val angle: Float by animateFloatAsState(
-                    if (expanded) 180f else 0f,
-                    label = "Card Arrow"
-                )
-                Icon(
-                    Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "expand arrow",
-                    modifier = Modifier.rotate(angle)
-                )
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 10.dp, start = 5.dp)
+                ) {
+                    UserImage(pillData)
+                    Text(
+                        text = pillData.name.split(" ")[0],
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        lineHeight = 24.sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    val angle: Float by animateFloatAsState(
+                        if (expanded) -180f else 0f,
+                        label = "Card Arrow"
+                    )
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "expand arrow",
+                        modifier = Modifier.rotate(angle)
+                    )
+                }
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    pillData.lastUpdate.rememberKey(null) {
+                        val formatter = if (it.until(Instant.now()) >= 1.days) {
+                            DateTimeFormatter.ofLocalizedDateTime(SHORT)
+                        } else {
+                            DateTimeFormatter.ofLocalizedTime(SHORT)
+                        }.withZone(ZoneId.systemDefault())
+                        formatter.format(it)
+                    }?.let {
+                        Image(
+                            painterResource(R.drawable.sync),
+                            "sync",
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground),
+                            modifier = Modifier.padding(end = 5.dp)
+                        )
+                        Text(
+                            it,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
+            
             val innerCardColor = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             )
@@ -724,13 +753,23 @@ class FollowUI : DefaultLifecycleObserver {
      */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun App(modifier: Modifier = Modifier, allData: Array<out PillData>? = null) {
+    fun App(modifier: Modifier = Modifier, allData: Array<out PillData>? = null, backPressed: MutableState<Boolean> = mutableStateOf(false)) {
         val mutableIds = remember { mutableStateOf(mapOf<String, PillData>()) }
         val ids by mutableIds
         val mutableInvitations = remember { mutableStateOf(arrayOf<Confirmation>()) }
         val lastError = remember { mutableStateOf<Exception?>(null) }
         var menuVisible by remember { mutableStateOf(false) }
+        val invitationsVisible = remember { mutableStateOf(false) }
         val context = LocalContext.current
+        
+        if (backPressed.value) {
+            backPressed.value = false
+            if (menuVisible) {
+                menuVisible = false
+            } else if (invitationsVisible.value) {
+                invitationsVisible.value = false
+            }
+        }
         
         Box {
             lastError.value?.let {
@@ -798,35 +837,40 @@ class FollowUI : DefaultLifecycleObserver {
                             Text(stringResource(R.string.following))
                         }
                     )
-                },
-                bottomBar = {
-                    Invitations(
-                        mutableInvitations,
-                        remember(ids) { mutableIntStateOf(ids.size) }
-                    )
                 }
             ) { innerPadding ->
-                val states = remember { HashMap<String, MutableState<Boolean>>() }
-                var closedInitial by remember { mutableStateOf(false) }
-                LazyColumn(
-                    horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier
-                        .fillMaxWidth()
-                        .padding(innerPadding),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
+                Box(
+                    modifier = Modifier.padding(innerPadding)
                 ) {
-                    items(
-                        items = ids.toList(),
-                        key = { message ->
-                            message.hashCode()
-                        }) { (id, data) ->
-                        if (ids.size > 1 && !closedInitial) {
-                            states.computeIfAbsent(id) { mutableStateOf(false) }.value = false
-                            closedInitial = true
+                    val states = remember { HashMap<String, MutableState<Boolean>>() }
+                    var closedInitial by remember { mutableStateOf(false) }
+                    
+                    LazyColumn(
+                        horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
+                    ) {
+                        items(
+                            items = ids.toList(),
+                            key = { message ->
+                                message.hashCode()
+                            }) { (id, data) ->
+                            if (ids.size > 1 && !closedInitial) {
+                                states.computeIfAbsent(id) { mutableStateOf(false) }.value = false
+                                closedInitial = true
+                            }
+                            val state = states.computeIfAbsent(id) { mutableStateOf(ids.size < 2) }
+                            FollowPill(data, state, menuVisible)
                         }
-                        val state = states.computeIfAbsent(id) { mutableStateOf(ids.size < 2) }
-                        FollowPill(data, state, menuVisible)
                     }
+                    
+                    Invitations(
+                        mutableInvitations,
+                        remember(ids) { mutableIntStateOf(ids.size) },
+                        invitationsVisible,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
                 }
             }
             
@@ -1063,7 +1107,7 @@ class FollowUI : DefaultLifecycleObserver {
                         Instant.now() - 1.minutes,
                         Instant.now() - 2.minutes,
                         Instant.now() - 1.5.days,
-                        BloodGlucose.Trend.constant
+                        Trend.constant
                     )
                 )
             )
@@ -1101,6 +1145,8 @@ class FollowUI : DefaultLifecycleObserver {
             val lastReading = Instant.now() - 1.minutes
             val lastBolus = Instant.now() - 2.minutes
             val lastEntry = Instant.now() - 2.hours
+            // val lastUpdate = arrayOf(lastReading, lastBolus, lastEntry).max()
+            val lastUpdate = Instant.now() - 1.5.days
             FollowPill(
                 PillData(
                     130.mgdl,
@@ -1109,11 +1155,22 @@ class FollowUI : DefaultLifecycleObserver {
                     lastCarbEntry = lastEntry,
                     glucoseChange = (-5).mgdl,
                     trend = rapidRise,
-                    warningType = Warning
+                    warningType = Warning,
+                    lastUpdate = lastUpdate
                 ),
                 mutableExpanded = remember { mutableStateOf(true) },
                 inMenu = false
             )
         }
     }
+}
+
+@Composable
+inline fun <T, R> T.rememberKey(crossinline calculation: @DisallowComposableCalls (T) -> R): R {
+    return remember(this) { calculation(this) }
+}
+
+@Composable
+inline fun <T, R> T?.rememberKey(default: R, crossinline calculation: @DisallowComposableCalls (T) -> R): R {
+    return remember(this) { this?.let { calculation(it) } ?: default }
 }

@@ -18,4 +18,5 @@ data class PillData(
     val lastCarbEntry: Instant? = null,
     val trend: Trend? = null,
     val warningType: WarningType = None,
+    val lastUpdate: Instant? = null,
 )

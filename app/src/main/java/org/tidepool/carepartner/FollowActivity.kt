@@ -5,9 +5,12 @@ import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
@@ -48,14 +51,17 @@ class FollowActivity : ComponentActivity() {
                 authState.update(newResp, newEx)
             }
         }
-        
+        val backPressed = mutableStateOf(false)
+        onBackPressedDispatcher.addCallback(this) {
+            backPressed.value = true
+        }
         if ((resp == null).xor(ex == null)) {
             authState.update(resp, ex)
         }
         enableEdgeToEdge()
         setContent {
             LoopFollowTheme {
-                ui.App(modifier = Modifier.fillMaxSize())
+                ui.App(modifier = Modifier.fillMaxSize(), backPressed = backPressed)
             }
         }
     }

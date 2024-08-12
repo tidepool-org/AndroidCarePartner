@@ -294,7 +294,8 @@ class DataUpdater(
                 lastBolus,
                 lastCarbEntry,
                 trend,
-                warningType
+                warningType,
+                arrayOf(lastReading, lastBolus, lastCarbEntry).filterNotNull().maxOrNull()
             )
         }
         

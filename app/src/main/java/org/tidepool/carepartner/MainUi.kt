@@ -81,7 +81,9 @@ fun HomeUI() {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier =  Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxHeight()) {
                         Button(
-                            onClick = { context.authorize() },
+                            onClick = {
+                                context.authorize()
+                            },
                             //modifier = Modifier.padding(bottom = 60.dp),
                             colors = LoopTheme.current.buttonColors
                         ) {
