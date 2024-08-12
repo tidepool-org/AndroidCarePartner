@@ -1,6 +1,7 @@
 package org.tidepool.carepartner
 
 import android.content.res.Configuration
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
@@ -34,6 +35,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.OnLifecycleEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -70,11 +75,34 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-class FollowUI {
+class FollowUI : DefaultLifecycleObserver {
     
     internal var future: ScheduledFuture<*>? = null
-    private var updater: DataUpdater? = null
+    var updater: DataUpdater? = null
     
+    private fun startDataCollection() {
+        Log.v("FollowActivity", "Starting Data Collection")
+        updater?.let {
+            future?.cancel(true)
+            future = executor.scheduleWithFixedDelay(
+                updater, 0, 1, TimeUnit.MINUTES
+            )
+        }
+    }
+    
+    private fun stopDataCollection() {
+        Log.v("FollowActivity", "Stopping Data Collection")
+        future?.cancel(false)
+        future = null
+    }
+    
+    override fun onResume(owner: LifecycleOwner) {
+        startDataCollection()
+    }
+    
+    override fun onPause(owner: LifecycleOwner) {
+        stopDataCollection()
+    }
     
     @Composable
     fun Invitations(
@@ -825,9 +853,7 @@ class FollowUI {
                     lastError,
                     context
                 )
-                future = executor.scheduleWithFixedDelay(
-                    updater, 0, 1, TimeUnit.MINUTES
-                )
+                startDataCollection()
             } else {
                 mutableIds.value = Stream.of(*allData).collect(toMap({ it.name }) { it })
             }

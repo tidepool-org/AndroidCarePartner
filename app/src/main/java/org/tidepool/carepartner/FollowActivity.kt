@@ -3,6 +3,7 @@ package org.tidepool.carepartner
 import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +20,7 @@ import java.time.temporal.ChronoUnit
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
@@ -29,13 +31,11 @@ class FollowActivity : ComponentActivity() {
         val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
     }
     
-    lateinit var ui: FollowUI
+    private lateinit var ui: FollowUI
     
-    private var future: ScheduledFuture<*>? = null
-    private var updater: DataUpdater? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ui = FollowUI()
+        ui = FollowUI().apply { lifecycle.addObserver(this) }
         val resp = AuthorizationResponse.fromIntent(intent)
         val ex = AuthorizationException.fromIntent(intent)
         @SuppressLint("SourceLockedOrientationActivity")

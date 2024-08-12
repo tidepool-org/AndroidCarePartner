@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeout
 import net.openid.appauth.*
 import org.tidepool.carepartner.FollowActivity
 import org.tidepool.carepartner.MainActivity
+import org.tidepool.carepartner.backend.PersistentData.Companion.getIdToken
 import org.tidepool.carepartner.backend.jank.retrieveConfiguration
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.Environment
@@ -105,13 +106,15 @@ class PersistentData {
             _lastEmail = null
             _lastName = null
             val authService = AuthorizationService(this)
-            val endSessionRequest = _authState.authorizationServiceConfiguration?.let {
-                EndSessionRequest.Builder(it)
-                    .setIdTokenHint(_authState.idToken)
-                    .setPostLogoutRedirectUri(redirectUri)
-                    .build()
+            val endSessionRequest = _authState.authorizationServiceConfiguration?.let { config ->
+                _authState.idToken?.let { idToken ->
+                    EndSessionRequest.Builder(config)
+                        .setIdTokenHint(idToken)
+                        .setPostLogoutRedirectUri(redirectUri)
+                        .build()
+                }
             } ?: run {
-                Log.w(TAG, "No authorizationServiceConfiguration! going directly to MainActivity")
+                Log.w(TAG, "Can't logout! going directly to MainActivity")
                 null
             }
             
@@ -138,7 +141,6 @@ class PersistentData {
             AuthorizationService(this).performTokenRequest(resp.createTokenExchangeRequest()) { newResp, ex ->
                 _authState.update(newResp, ex)
                 if (ex != null) {
-                    Log.e(TAG,"exchangeAuthCode(): ${ex.message ?: "No Exception Message"}")
                     continuation.resumeWithException(ex)
                 } else {
                     continuation.resume(Unit)
@@ -153,7 +155,6 @@ class PersistentData {
             return suspendCancellableCoroutine { continuation ->
                 val authService by lazy { AuthorizationService(this) }
                 _authState.performActionWithFreshTokens(authService) { accessToken, _, ex ->
-                    Log.v(TAG, "Fresh Token callback called")
                     if (ex != null) {
                         continuation.resumeWithException(ex)
                     } else {
@@ -164,7 +165,9 @@ class PersistentData {
         }
         
         suspend fun Context.saveEmail() {
-            var (email, name) = CommunicationHelper(environment).users.getCurrentUserInfo(getAccessToken()).let { it.username to it.profile?.fullName }
+            val helper = CommunicationHelper(environment)
+            val (email, userId) = helper.users.getCurrentUserInfo(getAccessToken()).let { it.username to it.userid }
+            val name = helper.metadata.getProfile(getAccessToken(), userId).fullName
             _lastName = name
             _lastEmail = email
             Log.v(TAG, "lastEmail: $_lastEmail, lastName: $name")
@@ -177,7 +180,6 @@ class PersistentData {
             return suspendCancellableCoroutine { continuation ->
                 _authState.performActionWithFreshTokens(AuthorizationService(this)) { _, idToken, ex ->
                     if (ex != null) {
-                        Log.e(TAG,"getIdToken(): ${ex.message ?: "No Exception Message"}")
                         continuation.resumeWithException(ex)
                     } else {
                         continuation.resume(idToken!!)
