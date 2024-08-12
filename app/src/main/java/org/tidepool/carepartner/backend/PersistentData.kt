@@ -105,20 +105,26 @@ class PersistentData {
             _lastEmail = null
             _lastName = null
             val authService = AuthorizationService(this)
-            _authState.authorizationServiceConfiguration?.let {
-                val endSessionRequest = EndSessionRequest.Builder(it)
+            val endSessionRequest = _authState.authorizationServiceConfiguration?.let {
+                EndSessionRequest.Builder(it)
                     .setIdTokenHint(_authState.idToken)
                     .setPostLogoutRedirectUri(redirectUri)
                     .build()
-                
+            } ?: run {
+                Log.w(TAG, "No authorizationServiceConfiguration! going directly to MainActivity")
+                null
+            }
+            
+            _authState = AuthState()
+            writeToDisk()
+            
+            endSessionRequest?.let {
                 authService.performEndSessionRequest(
-                    endSessionRequest,
+                    it,
                     PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
                     PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
                 )
-            }
-            _authState = AuthState()
-            writeToDisk()
+            } ?: startActivity(Intent(this, MainActivity::class.java))
         }
         
         /**

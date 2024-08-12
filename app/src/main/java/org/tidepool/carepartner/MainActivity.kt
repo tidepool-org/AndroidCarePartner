@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationService
@@ -31,32 +32,32 @@ class MainActivity : ComponentActivity() {
         @SuppressLint("SourceLockedOrientationActivity")
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
-        setContent {
-            HomeUI()
-            LaunchedEffect(true) {
-                baseContext.readFromDisk()
-                try {
-                    withTimeout(15.seconds) {
-                        getAccessToken()
-                    }
-                } catch (_: TimeoutCancellationException) {
-                    // don't care if it times out
-                } catch (_: AuthorizationException) {
-                    // don't care if access token get fails
-                } catch (_: NoAuthorizationException) {
-                    // don't care if it can't perform the authorization
-                }
-                
-                if (
-                    PersistentData.authState.accessTokenExpiration?.let {
-                        Instant.now().until(it) > 10.seconds
-                    } == true
-                ) {
-                    startActivity(Intent(baseContext, FollowActivity::class.java))
-                } else if (PersistentData.lastEmail != null) {
-                    authorize()
+        baseContext.readFromDisk()
+        try {
+            runBlocking {
+                withTimeout(15.seconds) {
+                    getAccessToken()
                 }
             }
+        } catch (_: TimeoutCancellationException) {
+            // don't care if it times out
+        } catch (_: AuthorizationException) {
+            // don't care if access token get fails
+        } catch (_: NoAuthorizationException) {
+            // don't care if it can't perform the authorization
+        }
+        
+        if (
+            PersistentData.authState.accessTokenExpiration?.let {
+                Instant.now().until(it) > 10.seconds
+            } == true
+        ) {
+            startActivity(Intent(baseContext, FollowActivity::class.java))
+        } else if (PersistentData.lastEmail != null) {
+            authorize()
+        }
+        setContent {
+            HomeUI()
         }
     }
 }
