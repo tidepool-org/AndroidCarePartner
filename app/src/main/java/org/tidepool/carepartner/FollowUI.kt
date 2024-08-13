@@ -2,7 +2,6 @@ package org.tidepool.carepartner
 
 import android.content.Context
 import android.content.res.Configuration
-import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState

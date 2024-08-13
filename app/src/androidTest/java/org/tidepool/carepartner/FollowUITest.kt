@@ -6,9 +6,6 @@ import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
-import org.junit.rules.TestRule
-import org.junit.runner.Description
-import org.junit.runners.model.Statement
 import org.tidepool.carepartner.backend.PillData
 import org.tidepool.carepartner.ui.theme.LoopFollowTheme
 import org.tidepool.sdk.model.confirmations.Confirmation
@@ -18,6 +15,7 @@ import kotlin.reflect.KProperty
 class FollowUITest {
     
     class UiResource : ExternalResource() {
+        
         private lateinit var ui: FollowUI
         override fun before() {
             ui = FollowUI()
@@ -31,8 +29,10 @@ class FollowUITest {
             return ui
         }
     }
+    
     @get:Rule
     val composeTestRule = createComposeRule()
+    
     @get:Rule
     val uiRule = UiResource()
     private val ui by uiRule

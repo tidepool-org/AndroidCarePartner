@@ -31,7 +31,12 @@ suspend fun retrieveConfiguration(
     continuation.invokeOnCancellation { future.cancel(true) }
 }
 
-private class ConfigurationRetrievalTask(val uri: Uri, val connectionBuilder: ConnectionBuilder, val callback: (AuthorizationServiceConfiguration?, Exception?) -> Unit): Runnable {
+private class ConfigurationRetrievalTask(
+    val uri: Uri,
+    val connectionBuilder: ConnectionBuilder,
+    val callback: (AuthorizationServiceConfiguration?, Exception?) -> Unit
+) : Runnable {
+    
     override fun run() {
         try {
             connectionBuilder.openConnection(uri).apply {

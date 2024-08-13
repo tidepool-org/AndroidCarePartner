@@ -15,6 +15,7 @@ import java.net.URL
 private const val TAG = "EnvTypeAdapter"
 
 class EnvironmentTypeAdapter : TypeAdapterFactory {
+    
     private val customTypeAdapter: TypeAdapter<*> by lazy { CustomTypeAdapter() }
     override fun <T : Any?> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
         if (Environment::class.java.isAssignableFrom(type.rawType)) {
@@ -45,13 +46,14 @@ class EnvironmentTypeAdapter : TypeAdapterFactory {
             while (envCode == null || url == null || authUrl == null) {
                 when (reader.nextName()) {
                     "envCode" -> envCode = reader.nextString()
-                    "url" -> url = URL(reader.nextString())
-                    "auth" -> {
+                    "url"     -> url = URL(reader.nextString())
+                    
+                    "auth"    -> {
                         reader.beginObject()
                         while (authUrl == null) {
                             when (reader.nextName()) {
                                 "url" -> authUrl = URL(reader.nextString())
-                                else -> reader.skipValue()
+                                else  -> reader.skipValue()
                             }
                         }
                         while (reader.peek() != END_OBJECT) {
@@ -59,7 +61,8 @@ class EnvironmentTypeAdapter : TypeAdapterFactory {
                         }
                         reader.endObject()
                     }
-                    else -> reader.skipValue()
+                    
+                    else      -> reader.skipValue()
                 }
             }
             while (reader.peek() != END_OBJECT) {

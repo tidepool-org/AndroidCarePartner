@@ -30,22 +30,30 @@ fun HomeUI() {
         
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxHeight()) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxHeight()
+                    ) {
                         Box {
                             var dropdownExpanded by remember { mutableStateOf(false) }
                             var selectedEnv by remember { mutableStateOf(PersistentData.environment) }
                             val interactionSource = remember { MutableInteractionSource() }
                             
-                            //Image(painter = painterResource(id = R.drawable.logo), contentDescription = "Tidepool Logo")
+                            // Image(painter = painterResource(id = R.drawable.logo), contentDescription = "Tidepool Logo")
                             Image(
                                 painterResource(id = R.drawable.loop_carepartner_icon),
-                                //Icons.Filled.AccountCircle,
+                                // Icons.Filled.AccountCircle,
                                 contentDescription = "Loop Shadow Logo",
-                                modifier = Modifier.clickable(
-                                    indication = null,
-                                    interactionSource = interactionSource
-                                ) {}.size(DpSize(180.dp, 180.dp))
+                                modifier = Modifier
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = interactionSource
+                                    ) {}
+                                    .size(DpSize(180.dp, 180.dp))
                             )
                             
                             DropdownMenu(
@@ -53,7 +61,11 @@ fun HomeUI() {
                                 onDismissRequest = {
                                     dropdownExpanded = false
                                     PersistentData.environment = selectedEnv
-                                    Toast.makeText(context, "Switched to environment ${selectedEnv.envCode}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Switched to environment ${selectedEnv.envCode}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 },
                             ) {
                                 Environments.entries.forEach {
@@ -78,13 +90,16 @@ fun HomeUI() {
                         }
                     }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier =  Modifier.fillMaxWidth()) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxHeight()) {
                         Button(
                             onClick = {
                                 context.authorize()
                             },
-                            //modifier = Modifier.padding(bottom = 60.dp),
+                            // modifier = Modifier.padding(bottom = 60.dp),
                             colors = LoopTheme.current.buttonColors
                         ) {
                             Text(stringResource(R.string.log_in))

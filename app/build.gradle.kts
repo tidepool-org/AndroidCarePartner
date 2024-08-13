@@ -6,20 +6,20 @@ plugins {
 android {
     namespace = "org.tidepool.carepartner"
     compileSdk = 34
-
+    
     defaultConfig {
         applicationId = "org.tidepool.carepartner"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
+        
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
     }
-
+    
     buildTypes {
         release {
             isMinifyEnabled = false

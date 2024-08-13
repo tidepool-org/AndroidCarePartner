@@ -115,12 +115,13 @@ class DataUpdater(
         constructor(exception: Exception? = null) : this(e = exception)
     }
     
-    internal class ServerError(e: Exception? = null): FatalDataException("Server Error", e)
+    internal class ServerError(e: Exception? = null) : FatalDataException("Server Error", e)
     
     internal class TokenExpiredException(e: Exception? = null) :
         FatalDataException("The Token Has Expired", e)
     
-    internal class NoAccessException(e: Exception? = null) : FatalDataException("No Access to Data", e)
+    internal class NoAccessException(e: Exception? = null) :
+        FatalDataException("No Access to Data", e)
     
     suspend fun updateInvitations() {
         invitations = getInvitations()
@@ -166,10 +167,10 @@ class DataUpdater(
         
         val warningType = data?.reading?.let { value ->
             when {
-                value > 250.mgdl -> Warning
-                value in 55.mgdl..<70.mgdl   -> Warning
-                value < 55.mgdl              -> Critical
-                else                         -> None
+                value > 250.mgdl           -> Warning
+                value in 55.mgdl..<70.mgdl -> Warning
+                value < 55.mgdl            -> Critical
+                else                       -> None
             }
         } ?: None
         

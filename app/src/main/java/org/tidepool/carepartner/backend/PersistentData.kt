@@ -12,13 +12,11 @@ import kotlinx.coroutines.withTimeout
 import net.openid.appauth.*
 import org.tidepool.carepartner.FollowActivity
 import org.tidepool.carepartner.MainActivity
-import org.tidepool.carepartner.backend.PersistentData.Companion.getIdToken
 import org.tidepool.carepartner.backend.jank.retrieveConfiguration
 import org.tidepool.sdk.CommunicationHelper
 import org.tidepool.sdk.Environment
 import org.tidepool.sdk.Environments
 import org.tidepool.sdk.model.BloodGlucose.Units
-import org.tidepool.sdk.model.confirmations.Confirmation
 import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -29,6 +27,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class PersistentData {
     private class DataHolder {
+        
         var authState: AuthState = AuthState()
         var lastEmail: String? = null
         var lastName: String? = null
@@ -37,6 +36,7 @@ class PersistentData {
     }
     
     companion object {
+        
         private val redirectUri = Uri.parse("org.tidepool.carepartner://tidepool_service_callback")
         private const val FILENAME = "persistent-data"
         private val data = DataHolder()
@@ -89,13 +89,14 @@ class PersistentData {
             }
             Log.v(TAG, "Done with lock")
         }
-
+        
         private const val TAG = "PersistentData"
         
         private suspend fun getAuthState() {
             withTimeout(15.seconds) {
                 val env = environment
-                val uriString = "${env.auth.url}/realms/${env.envCode}/.well-known/openid-configuration"
+                val uriString =
+                    "${env.auth.url}/realms/${env.envCode}/.well-known/openid-configuration"
                 Log.v(TAG, "URI: \"${uriString}\"")
                 _authState = AuthState(retrieveConfiguration(Uri.parse(uriString)))
             }
@@ -124,8 +125,18 @@ class PersistentData {
             endSessionRequest?.let {
                 authService.performEndSessionRequest(
                     it,
-                    PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
-                    PendingIntent.getActivity(this, 0, Intent(this, FollowActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        Intent(this, MainActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE
+                    ),
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        Intent(this, FollowActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
                 )
             } ?: startActivity(Intent(this, MainActivity::class.java))
         }
@@ -135,7 +146,7 @@ class PersistentData {
          * This should only be thrown if authorization isn't performed in the right order
          */
         class NoAuthorizationException : Exception("No Authorization Response")
-
+        
         private suspend fun Context.exchangeAuthCode() = suspendCoroutine { continuation ->
             val resp = authState.lastAuthorizationResponse ?: throw NoAuthorizationException()
             AuthorizationService(this).performTokenRequest(resp.createTokenExchangeRequest()) { newResp, ex ->
@@ -147,7 +158,7 @@ class PersistentData {
                 }
             }
         }
-
+        
         suspend fun Context.getAccessToken(): String {
             if (authState.accessToken == null) {
                 exchangeAuthCode()
@@ -166,13 +177,14 @@ class PersistentData {
         
         suspend fun Context.saveEmail() {
             val helper = CommunicationHelper(environment)
-            val (email, userId) = helper.users.getCurrentUserInfo(getAccessToken()).let { it.username to it.userid }
+            val (email, userId) = helper.users.getCurrentUserInfo(getAccessToken())
+                .let { it.username to it.userid }
             val name = helper.metadata.getProfile(getAccessToken(), userId).fullName
             _lastName = name
             _lastEmail = email
             Log.v(TAG, "lastEmail: $_lastEmail, lastName: $name")
         }
-
+        
         suspend fun Context.getIdToken(): String {
             if (authState.idToken == null) {
                 exchangeAuthCode()
@@ -187,11 +199,12 @@ class PersistentData {
                 }
             }
         }
-
+        
         fun getAuthRequestBuilder(): AuthorizationRequest.Builder = runBlocking {
             getAuthState()
             return@runBlocking AuthorizationRequest.Builder(
-                _authState.authorizationServiceConfiguration ?: throw AssertionError("No Configuration"),
+                _authState.authorizationServiceConfiguration
+                    ?: throw AssertionError("No Configuration"),
                 "tidepool-carepartner-android",
                 ResponseTypeValues.CODE,
                 redirectUri
