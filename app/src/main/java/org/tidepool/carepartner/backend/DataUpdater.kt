@@ -166,8 +166,7 @@ class DataUpdater(
         
         val warningType = data?.reading?.let { value ->
             when {
-                value > 400.mgdl             -> Critical
-                value in 250.mgdl..<400.mgdl -> Warning
+                value > 250.mgdl -> Warning
                 value in 55.mgdl..<70.mgdl   -> Warning
                 value < 55.mgdl              -> Critical
                 else                         -> None

@@ -458,6 +458,14 @@ class FollowUI : DefaultLifecycleObserver {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
                         ) {
+                            val color =
+                            if (pillData.warningType == Critical) {
+                                LoopTheme.current.critical
+                            } else if (pillData.bg?.let { it >400.mgdl } == true) {
+                                LoopTheme.current.critical
+                            } else {
+                                MaterialTheme.colorScheme.onBackground
+                            }
                             Text(
                                 text = pillData.bg?.let {
                                     when {
@@ -469,11 +477,7 @@ class FollowUI : DefaultLifecycleObserver {
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 30.sp,
                                 lineHeight = 35.8.sp,
-                                color = when (pillData.warningType) {
-                                    Warning  -> LoopTheme.current.warning
-                                    Critical -> LoopTheme.current.critical
-                                    None     -> MaterialTheme.colorScheme.onBackground
-                                },
+                                color = color,
                                 modifier = Modifier.padding(top=5.dp)
                             )
                             Text(
@@ -774,7 +778,7 @@ class FollowUI : DefaultLifecycleObserver {
             }
         }
         
-        Box {
+        Box(modifier.fillMaxSize()) {
             lastError.value?.let {
                 AlertDialog(
                     title = {
@@ -843,7 +847,7 @@ class FollowUI : DefaultLifecycleObserver {
                 }
             ) { innerPadding ->
                 Box(
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.padding(innerPadding).fillMaxSize()
                 ) {
                     val states = remember { HashMap<String, MutableState<Boolean>>() }
                     var closedInitial by remember { mutableStateOf(false) }
