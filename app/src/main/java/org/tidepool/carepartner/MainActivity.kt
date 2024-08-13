@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
         @SuppressLint("SourceLockedOrientationActivity")
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
+        numRetries = 0
         setContent {
             HomeUI()
             LaunchedEffect(true) {

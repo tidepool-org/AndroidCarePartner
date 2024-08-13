@@ -1,5 +1,6 @@
 package org.tidepool.carepartner
 
+import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
 import androidx.annotation.StringRes
@@ -457,13 +458,13 @@ class FollowUI : DefaultLifecycleObserver {
                             modifier = Modifier
                         ) {
                             val color =
-                            if (pillData.warningType == Critical) {
-                                LoopTheme.current.critical
-                            } else if (pillData.bg?.let { it >400.mgdl } == true) {
-                                LoopTheme.current.critical
-                            } else {
-                                MaterialTheme.colorScheme.onBackground
-                            }
+                                if (pillData.warningType == Critical) {
+                                    LoopTheme.current.critical
+                                } else if (pillData.bg?.let { it > 400.mgdl } == true) {
+                                    LoopTheme.current.critical
+                                } else {
+                                    MaterialTheme.colorScheme.onBackground
+                                }
                             Text(
                                 text = pillData.bg?.let {
                                     when {
@@ -476,7 +477,7 @@ class FollowUI : DefaultLifecycleObserver {
                                 fontSize = 30.sp,
                                 lineHeight = 35.8.sp,
                                 color = color,
-                                modifier = Modifier.padding(top=5.dp)
+                                modifier = Modifier.padding(top = 5.dp)
                             )
                             Text(
                                 text = PersistentData.unit.shorthand,
@@ -758,7 +759,11 @@ class FollowUI : DefaultLifecycleObserver {
      */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun App(modifier: Modifier = Modifier, allData: Array<out PillData>? = null, backPressed: MutableState<Boolean> = mutableStateOf(false)) {
+    fun App(
+        modifier: Modifier = Modifier,
+        allData: Array<out PillData>? = null,
+        backPressed: MutableState<Boolean> = mutableStateOf(false)
+    ) {
         val mutableIds = remember { mutableStateOf(mapOf<String, PillData>()) }
         val ids by mutableIds
         val mutableInvitations = remember { mutableStateOf(arrayOf<Confirmation>()) }
@@ -795,23 +800,12 @@ class FollowUI : DefaultLifecycleObserver {
                         Text(message!!)
                     },
                     onDismissRequest = {
-                        if (lastError.value is FatalDataException) {
-                            future?.cancel(true)
-                            when (lastError.value) {
-                                is TokenExpiredException -> context.authorize()
-                                else                     -> context.logout()
-                            }
-                        }
-                        lastError.value = null
+                        context.handleError(lastError)
                     },
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                if (it is FatalDataException) {
-                                    future?.cancel(true)
-                                    context.authorize()
-                                }
-                                lastError.value = null
+                                context.handleError(lastError)
                             }
                         ) {
                             Text(
@@ -845,7 +839,9 @@ class FollowUI : DefaultLifecycleObserver {
                 }
             ) { innerPadding ->
                 Box(
-                    modifier = Modifier.padding(innerPadding).fillMaxSize()
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize()
                 ) {
                     val states = remember { HashMap<String, MutableState<Boolean>>() }
                     var closedInitial by remember { mutableStateOf(false) }
@@ -980,7 +976,7 @@ class FollowUI : DefaultLifecycleObserver {
                 Text(
                     stringResource(R.string.unit_select),
                     modifier = Modifier
-                        .padding(top=15.dp, bottom = 5.dp)
+                        .padding(top = 15.dp, bottom = 5.dp)
                         .padding(start = 20.dp)
                 )
                 Row(
@@ -1168,6 +1164,18 @@ class FollowUI : DefaultLifecycleObserver {
             )
         }
     }
+    
+    private fun Context.handleError(state: MutableState<Exception?>) {
+        var value by state
+        if (value is FatalDataException) {
+            future?.cancel(true)
+            when (value) {
+                is TokenExpiredException -> retryAuthorize()
+                else                     -> logout()
+            }
+        }
+        value = null
+    }
 }
 
 @Composable
@@ -1176,6 +1184,20 @@ inline fun <T, R> T.rememberKey(crossinline calculation: @DisallowComposableCall
 }
 
 @Composable
-inline fun <T, R> T?.rememberKey(default: R, crossinline calculation: @DisallowComposableCalls (T) -> R): R {
+inline fun <T, R> T?.rememberKey(
+    default: R,
+    crossinline calculation: @DisallowComposableCalls (T) -> R
+): R {
     return remember(this) { this?.let { calculation(it) } ?: default }
 }
+
+fun Context.retryAuthorize() {
+    if (numRetries++ < MAX_RETRIES) {
+        authorize()
+    } else {
+        logout()
+    }
+}
+
+const val MAX_RETRIES: Int = 4
+var numRetries: Int = 0
