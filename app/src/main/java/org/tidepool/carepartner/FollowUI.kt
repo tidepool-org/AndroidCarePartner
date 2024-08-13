@@ -81,7 +81,6 @@ class FollowUI : DefaultLifecycleObserver {
     private var updater: DataUpdater? = null
     
     private fun startDataCollection() {
-        Log.v("FollowActivity", "Starting Data Collection")
         updater?.let {
             future?.cancel(true)
             future = executor.scheduleWithFixedDelay(
@@ -91,7 +90,6 @@ class FollowUI : DefaultLifecycleObserver {
     }
     
     private fun stopDataCollection() {
-        Log.v("FollowActivity", "Stopping Data Collection")
         future?.cancel(false)
         future = null
     }
@@ -766,7 +764,7 @@ class FollowUI : DefaultLifecycleObserver {
         val mutableInvitations = remember { mutableStateOf(arrayOf<Confirmation>()) }
         val lastError = remember { mutableStateOf<Exception?>(null) }
         var menuVisible by remember { mutableStateOf(false) }
-        val invitationsVisible = remember { mutableStateOf(false) }
+        val invitationsVisible = remember(ids.isEmpty()) { mutableStateOf(ids.isEmpty()) }
         val context = LocalContext.current
         
         if (backPressed.value) {
