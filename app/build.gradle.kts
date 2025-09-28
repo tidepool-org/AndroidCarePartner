@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -39,9 +40,6 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
-    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -50,11 +48,14 @@ android {
 }
 
 dependencies {
-    //
+    // Retrofit for HTTP exceptions
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    
     implementation(libs.appauth)
     implementation("org.tidepool.api:TidepoolKotlinAPI")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     
     implementation(libs.androidx.lifecycle.viewmodel.compose)

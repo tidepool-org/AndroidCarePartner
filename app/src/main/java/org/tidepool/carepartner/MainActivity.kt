@@ -18,6 +18,7 @@ import org.tidepool.carepartner.backend.PersistentData
 import org.tidepool.carepartner.backend.PersistentData.Companion.NoAuthorizationException
 import org.tidepool.carepartner.backend.PersistentData.Companion.accessTokenExpiration
 import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
+import org.tidepool.carepartner.backend.PersistentData.Companion.getAuthRequestBuilder
 import org.tidepool.carepartner.backend.PersistentData.Companion.readFromDisk
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
@@ -62,7 +63,7 @@ class MainActivity : ComponentActivity() {
 
 fun Context.authorize() {
     AuthorizationService(this).performAuthorizationRequest(
-        PersistentData.getAuthRequestBuilder().build(),
+        getAuthRequestBuilder().build(),
         PendingIntent.getActivity(
             this,
             0,

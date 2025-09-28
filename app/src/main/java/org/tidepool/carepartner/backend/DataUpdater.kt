@@ -12,26 +12,24 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.tidepool.carepartner.backend.PersistentData.Companion.getAccessToken
+import org.tidepool.carepartner.TidepoolApplication
 import org.tidepool.carepartner.backend.PersistentData.Companion.saveEmail
 import org.tidepool.carepartner.backend.PersistentData.Companion.writeToDisk
 import org.tidepool.carepartner.backend.WarningType.*
-import org.tidepool.sdk.CommunicationHelper
+import org.tidepool.carepartner.filterList
+import org.tidepool.sdk.TidepoolSDK
 import org.tidepool.sdk.model.BloodGlucose.GlucoseReading
 import org.tidepool.sdk.model.BloodGlucose.Trend
 import org.tidepool.sdk.model.confirmations.Confirmation
 import org.tidepool.sdk.model.data.*
 import org.tidepool.sdk.model.data.BasalAutomatedData.DeliveryType
-import org.tidepool.sdk.model.data.BaseData.DataType.*
+import org.tidepool.sdk.model.data.DataType.*
 import org.tidepool.sdk.model.data.DosingDecisionData.CarbsOnBoard
 import org.tidepool.sdk.model.data.DosingDecisionData.InsulinOnBoard
+import org.tidepool.sdk.model.metadata.users.Permission
 import org.tidepool.sdk.model.metadata.users.TrustUser
-import org.tidepool.sdk.model.metadata.users.TrustorUser
 import org.tidepool.sdk.model.mgdl
-import org.tidepool.sdk.requests.Data.CommaSeparatedArray
-import org.tidepool.sdk.requests.accept
-import org.tidepool.sdk.requests.dismiss
-import org.tidepool.sdk.requests.receivedInvitations
+import org.tidepool.sdk.service.ConfirmationService
 import retrofit2.HttpException
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -41,8 +39,8 @@ private const val TAG: String = "DataUpdater"
 
 class DataUpdater(
     output: MutableState<Map<String, PillData>>,
-    invitations: MutableState<Array<Confirmation>>,
-    error: MutableState<Exception?>,
+    invitations: MutableState<List<Confirmation>>,
+    error: MutableState<Throwable?>,
     private val context: Context,
 ) : Runnable {
     
@@ -52,10 +50,14 @@ class DataUpdater(
     
     private var savedEmail = false
     
+    private val tidepoolSDK: TidepoolSDK by lazy {
+        TidepoolApplication.getTidepoolSDK(context)
+    }
+    
     private suspend fun runAsync() {
         try {
             Log.v(TAG, "Starting flow...")
-            getIdFlow().map { (id, name) -> id to getData(id, name) }
+            getUserIdFlow().map { (id, name) -> id to getData(id, name) }
                 .collect { (id, data) ->
                     val mutable = output.toMutableMap()
                     mutable[id] = data
@@ -65,7 +67,15 @@ class DataUpdater(
             updateInvitations()
             if (!savedEmail) {
                 savedEmail = true
-                context.saveEmail()
+                tidepoolSDK.users.getCurrentUser().fold(
+                    onSuccess = {
+                        context.saveEmail(
+                            name = it.profile?.fullName.orEmpty(),
+                            email = it.username.orEmpty(),
+                        )
+                    },
+                    onFailure = {},
+                )
             }
             context.writeToDisk()
         } catch (e: HttpException) {
@@ -85,26 +95,33 @@ class DataUpdater(
     }
     
     suspend fun acceptConfirmation(confirmation: Confirmation) {
-        communicationHelper.confirmations.accept(
-            context.getAccessToken(),
-            communicationHelper.users.getCurrentUserInfo(
-                context.getAccessToken()
-            ).userid,
-            confirmation
+        tidepoolSDK.confirmations.acceptConfirmation(
+            confirmationKey = confirmation.key,
+            creatorId = confirmation.creatorId,
+        ).fold(
+            onSuccess = { Log.d(TAG, "onAcceptConfirmationSuccess()") },
+            onFailure = {
+                Log.e(TAG, "onAcceptConfirmationFailure(): ", it)
+                error = it
+            },
         )
         updateInvitations()
         runAsync()
     }
     
     suspend fun rejectConfirmation(confirmation: Confirmation) {
-        communicationHelper.confirmations.dismiss(
-            context.getAccessToken(),
-            communicationHelper.users.getCurrentUserInfo(
-                context.getAccessToken()
-            ).userid,
-            confirmation
+        tidepoolSDK.confirmations.dismissConfirmation(
+            confirmationKey = confirmation.key,
+            creatorId = confirmation.creatorId
+        ).fold(
+            onSuccess = {
+                updateInvitations()
+            },
+            onFailure = {
+                Log.e(TAG, "onAcceptConfirmationFailure(): ", it)
+                error = it
+            },
         )
-        updateInvitations()
     }
     
     internal open class FatalDataException protected constructor(
@@ -124,35 +141,32 @@ class DataUpdater(
         FatalDataException("No Access to Data", e)
     
     suspend fun updateInvitations() {
-        invitations = getInvitations()
-    }
-    
-    private suspend fun getInvitations(): Array<Confirmation> {
-        val userId = communicationHelper.users.getCurrentUserInfo(context.getAccessToken()).userid
-        return communicationHelper.confirmations.receivedInvitations(
-            context.getAccessToken(),
-            userId
+        tidepoolSDK.confirmations.getReceivedInvitations().fold(
+            onSuccess = {
+                invitations = it
+            },
+            onFailure = {
+                Log.e(TAG, "onUpdateConfirmationFailure(): ", it)
+                error = it
+            },
         )
     }
     
-    private fun getIdFlow(): Flow<Pair<String, String?>> = flow {
-        val userId = communicationHelper.users.getCurrentUserInfo(context.getAccessToken()).userid
-        Log.v(TAG, "Listing users...")
-        val trustUsers = communicationHelper.metadata.listUsers(context.getAccessToken(), userId)
-        trustUsers.filterIsInstance<TrustorUser>().filter {
-            it.permissions.contains(TrustUser.Permission.view)
-        }.forEach {
-            emit(it.userid to it.profile?.fullName)
-        }
+    private fun getUserIdFlow(): Flow<Pair<String, String?>> = flow {
+        tidepoolSDK.metadata.getTrustUsers()
+            .filterList { it is TrustUser.TrustorUser && it.permissions.contains(Permission.View) }
+            .fold(
+                onSuccess = { viewers ->
+                    viewers.forEach { emit(it.userId to it.profile?.fullName) }
+                },
+                onFailure = {
+                    Log.e(TAG, "Failed to get trust users: ", it)
+                    error = it
+                },
+            )
     }
     
-    private val communicationHelper: CommunicationHelper by lazy {
-        CommunicationHelper(
-            PersistentData.environment
-        )
-    }
-    
-    private fun getGlucose(result: Array<BaseData>): GlucoseData {
+    private fun getGlucose(result: List<BaseData>): GlucoseData {
         // >400 -> critical
         // 250..400 -> warning
         // 55..70 -> warning
@@ -191,14 +205,14 @@ class DataUpdater(
         val warningType: WarningType = None
     )
     
-    private fun getBasalResult(result: Array<BaseData>): Double? {
+    private fun getBasalResult(result: List<BaseData>): Double? {
         val basalInfo = result.filterIsInstance<BasalAutomatedData>()
             .maxByOrNull { it.time ?: Instant.MIN }
         val lastAutomated = result.filterIsInstance<BasalAutomatedData>()
-            .filter { it.deliveryType == DeliveryType.automated }
+            .filter { it.deliveryType == DeliveryType.Automated }
             .maxByOrNull { it.time ?: Instant.MIN }
         val lastScheduled = result.filterIsInstance<BasalAutomatedData>()
-            .filter { it.deliveryType == DeliveryType.scheduled }
+            .filter { it.deliveryType == DeliveryType.Scheduled }
             .maxByOrNull { it.time ?: Instant.MIN }
         Log.v(TAG, "Basal Data: $basalInfo")
         Log.v(
@@ -212,22 +226,22 @@ class DataUpdater(
         return basalInfo?.rate
     }
     
-    private fun getDosingData(result: Array<BaseData>): Pair<CarbsOnBoard?, InsulinOnBoard?> {
+    private fun getDosingData(result: List<BaseData>): Pair<CarbsOnBoard?, InsulinOnBoard?> {
         return result.filterIsInstance<DosingDecisionData>()
             .maxByOrNull { it.time ?: Instant.MIN }?.let {
                 Pair(it.carbsOnBoard, it.insulinOnBoard)
             } ?: Pair(null, null)
     }
     
-    private fun getLastBolus(result: Array<BaseData>): Instant? {
+    private fun getLastBolus(result: List<BaseData>): Instant? {
         return result.filterIsInstance<BolusData>().maxByOrNull { it.time ?: Instant.MIN }?.time
     }
     
-    private fun getLastCarbEntry(result: Array<BaseData>): Instant? {
+    private fun getLastCarbEntry(result: List<BaseData>): Instant? {
         return result.filterIsInstance<FoodData>().maxByOrNull { it.time ?: Instant.MIN }?.time
     }
     
-    private suspend fun getData(id: String, name: String?): PillData = coroutineScope {
+    private suspend fun getData(userId: String, name: String?): PillData = coroutineScope {
         var pillData: PillData
         val timeTaken = measureTime {
             var lastBolus: Instant? = null
@@ -240,44 +254,65 @@ class DataUpdater(
             var basalRate: Double? = null
             lateinit var warningType: WarningType
             var trend: Trend? = null
-            Log.v(TAG, "Getting data for user $name ($id)")
+            Log.v(TAG, "Getting data for user $name ($userId)")
             val longJob = launch {
                 val startDate = Instant.now().minus(3, ChronoUnit.DAYS)
-                val result = communicationHelper.data.getDataForUser(
-                    context.getAccessToken(),
-                    userId = id,
-                    types = CommaSeparatedArray(bolus, food),
-                    startDate = startDate
+                tidepoolSDK.data.getDataForUser(
+                    userId = userId,
+                    uploadId = null,
+                    deviceId = null,
+                    types = listOf(Food, Bolus),
+                    startDate = startDate,
+                    endDate = null,
+                    latest = null,
+                    dexcom = null,
+                    carelink = null,
+                    medtronic = null,
+                ).fold(
+                    onSuccess = {
+                        val lastBolusDeferred = async { getLastBolus(it) }
+                        val lastCarbEntryDeferred = async { getLastCarbEntry(it) }
+                        lastBolus = lastBolusDeferred.await()
+                        lastCarbEntry = lastCarbEntryDeferred.await()
+                    },
+                    onFailure = {},
                 )
-                
-                val lastBolusDeferred = async { getLastBolus(result) }
-                val lastCarbEntryDeferred = async { getLastCarbEntry(result) }
-                lastBolus = lastBolusDeferred.await()
-                lastCarbEntry = lastCarbEntryDeferred.await()
             }
             val shortJob = launch {
                 val startDate = Instant.now().minus(630, ChronoUnit.SECONDS) // - 10.5 minutes
                 
-                val result = communicationHelper.data.getDataForUser(
-                    context.getAccessToken(),
-                    userId = id,
-                    types = CommaSeparatedArray(dosingDecision, basal, cbg),
-                    startDate = startDate
+                tidepoolSDK.data.getDataForUser(
+                    userId = userId,
+                    uploadId = null,
+                    deviceId = null,
+                    types = listOf(Cbg, Basal, DosingDecision),
+                    startDate = startDate,
+                    endDate = null,
+                    latest = null,
+                    dexcom = null,
+                    carelink = null,
+                    medtronic = null,
+                ).fold(
+                    onSuccess = { result ->
+                        Log.v(TAG, "getData result Array Length: ${result.size}")
+                        val glucoseData = async { getGlucose(result) }
+                        val basalData = async { getBasalResult(result) }
+                        val dosingData = async { getDosingData(result) }
+                        
+                        val (newMgdl, newDiff, newLastReading, newTrend, newWarningType) = glucoseData.await()
+                        
+                        mgdl = newMgdl
+                        diff = newDiff
+                        lastReading = newLastReading
+                        trend = newTrend
+                        warningType = newWarningType
+                        val (newActiveCarbs, newActiveInsulin) = dosingData.await()
+                        activeCarbs = newActiveCarbs
+                        activeInsulin = newActiveInsulin
+                        basalRate = basalData.await()
+                    },
+                    onFailure = {},
                 )
-                Log.v(TAG, "getData result Array Length: ${result.size}")
-                val glucoseData = async { getGlucose(result) }
-                val basalData = async { getBasalResult(result) }
-                val dosingData = async { getDosingData(result) }
-                val (newMgdl, newDiff, newLastReading, newTrend, newWarningType) = glucoseData.await()
-                mgdl = newMgdl
-                diff = newDiff
-                lastReading = newLastReading
-                trend = newTrend
-                warningType = newWarningType
-                val (newActiveCarbs, newActiveInsulin) = dosingData.await()
-                activeCarbs = newActiveCarbs
-                activeInsulin = newActiveInsulin
-                basalRate = basalData.await()
             }
             
             longJob.join()

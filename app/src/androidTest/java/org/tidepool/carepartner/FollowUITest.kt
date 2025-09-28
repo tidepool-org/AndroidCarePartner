@@ -117,7 +117,7 @@ class FollowUITest {
         composeTestRule.onNodeWithText("Active Carbs").assertDoesNotExist()
     }
     
-    private fun createInvitations(vararg names: String): Array<Confirmation> {
+    private fun createInvitations(vararg names: String): List<Confirmation> {
         return names.map {
             Confirmation(
                 creator = Confirmation.Creator(
@@ -126,7 +126,7 @@ class FollowUITest {
                     )
                 )
             )
-        }.toTypedArray()
+        }
     }
     
     private fun createApp(vararg data: PillData) {

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.collectLatest
 import org.tidepool.carepartner.backend.PersistentData
 import org.tidepool.carepartner.ui.theme.LoopFollowTheme
 import org.tidepool.carepartner.ui.theme.LoopTheme
+import org.tidepool.sdk.Environment
 import org.tidepool.sdk.Environments
 import kotlin.time.Duration.Companion.seconds
 
@@ -71,7 +72,7 @@ fun HomeUI() {
                                 Environments.entries.forEach {
                                     DropdownMenuItem(
                                         text = {
-                                            Text(text = it.envCode)
+                                            Text(text = it.name)
                                         },
                                         onClick = {
                                             selectedEnv = it

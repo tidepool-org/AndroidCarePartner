@@ -104,7 +104,7 @@ class FollowUI : DefaultLifecycleObserver {
     
     @Composable
     fun Invitations(
-        mutableInvitations: MutableState<Array<Confirmation>>,
+        mutableInvitations: MutableState<List<Confirmation>>,
         userNumber: MutableIntState,
         isExpanded: MutableState<Boolean> = mutableStateOf(false),
         modifier: Modifier = Modifier
@@ -232,7 +232,7 @@ class FollowUI : DefaultLifecycleObserver {
     
     @Composable
     fun InvitationsList(
-        mutableInvitations: MutableState<Array<Confirmation>>
+        mutableInvitations: MutableState<List<Confirmation>>
     ) {
         val invitations by mutableInvitations
         LazyColumn(
@@ -317,7 +317,7 @@ class FollowUI : DefaultLifecycleObserver {
     fun EmptyInvitations() {
         LoopFollowTheme {
             Invitations(
-                remember { mutableStateOf(arrayOf()) },
+                remember { mutableStateOf(listOf()) },
                 remember { mutableIntStateOf(0) }
             )
         }
@@ -336,7 +336,7 @@ class FollowUI : DefaultLifecycleObserver {
             Invitations(
                 remember {
                     mutableStateOf(
-                        arrayOf(
+                        listOf(
                             Confirmation(
                                 creator = Confirmation.Creator(
                                     profile = Profile(
@@ -527,7 +527,8 @@ class FollowUI : DefaultLifecycleObserver {
                     }
                 }
             }
-            AnimatedContent(expanded, label = "Card",
+            AnimatedContent(
+                expanded, label = "Card",
                 transitionSpec = {
                     val anim =
                         (expandVertically { it } + fadeIn()).togetherWith(shrinkVertically { it } + fadeOut())
@@ -623,19 +624,19 @@ class FollowUI : DefaultLifecycleObserver {
         if (trend != null) {
             val id = remember(trend) {
                 when (trend) {
-                    rapidRise, rapidFall -> R.drawable.double_arrow_up
+                    RapidRise, RapidFall -> R.drawable.double_arrow_up
                     else                 -> R.drawable.flat_arrow
                 }
             }
             val rotation = remember(trend) {
                 when (trend) {
-                    constant     -> 0
-                    slowFall     -> 45
-                    slowRise     -> -45
-                    moderateFall -> 90
-                    moderateRise -> -90
-                    rapidFall    -> 180
-                    rapidRise    -> 0
+                    Constant     -> 0
+                    SlowFall     -> 45
+                    SlowRise     -> -45
+                    ModerateFall -> 90
+                    ModerateRise -> -90
+                    RapidFall    -> 180
+                    RapidRise    -> 0
                 }
             }
             val color = when (warningType) {
@@ -765,8 +766,8 @@ class FollowUI : DefaultLifecycleObserver {
     ) {
         val mutableIds = remember { mutableStateOf(mapOf<String, PillData>()) }
         val ids by mutableIds
-        val mutableInvitations = remember { mutableStateOf(arrayOf<Confirmation>()) }
-        val lastError = remember { mutableStateOf<Exception?>(null) }
+        val mutableInvitations = remember { mutableStateOf(listOf<Confirmation>()) }
+        val lastError = remember { mutableStateOf<Throwable?>(null) }
         var menuVisible by remember { mutableStateOf(false) }
         val invitationsVisible = remember(ids.isEmpty()) { mutableStateOf(ids.isEmpty()) }
         val context = LocalContext.current
@@ -866,9 +867,9 @@ class FollowUI : DefaultLifecycleObserver {
                     }
                     
                     Invitations(
-                        mutableInvitations,
-                        remember(ids) { mutableIntStateOf(ids.size) },
-                        invitationsVisible,
+                        mutableInvitations = mutableInvitations,
+                        userNumber = remember(ids) { mutableIntStateOf(ids.size) },
+                        isExpanded = invitationsVisible,
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
@@ -892,10 +893,10 @@ class FollowUI : DefaultLifecycleObserver {
         LaunchedEffect(true) {
             if (allData == null) {
                 updater = DataUpdater(
-                    mutableIds,
-                    mutableInvitations,
-                    lastError,
-                    context
+                    output = mutableIds,
+                    invitations = mutableInvitations,
+                    error = lastError,
+                    context = context
                 )
                 startDataCollection()
             } else {
@@ -983,32 +984,32 @@ class FollowUI : DefaultLifecycleObserver {
                     modifier = Modifier
                         .padding(start = 20.dp)
                         .clickable {
-                            unit = Units.milligramsPerDeciliter
+                            unit = Units.MilligramsPerDeciliter
                         }
                 ) {
                     RadioButton(
-                        unit == Units.milligramsPerDeciliter,
+                        unit == Units.MilligramsPerDeciliter,
                         {
-                            unit = Units.milligramsPerDeciliter
+                            unit = Units.MilligramsPerDeciliter
                         }
                     )
-                    Text(Units.milligramsPerDeciliter.shorthand)
+                    Text(Units.MilligramsPerDeciliter.shorthand)
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .padding(start = 20.dp)
                         .clickable {
-                            unit = Units.millimolesPerLiter
+                            unit = Units.MillimolesPerLiter
                         }
                 ) {
                     RadioButton(
-                        unit == Units.millimolesPerLiter,
+                        unit == Units.MillimolesPerLiter,
                         {
-                            unit = Units.millimolesPerLiter
+                            unit = Units.MillimolesPerLiter
                         }
                     )
-                    Text(Units.millimolesPerLiter.shorthand)
+                    Text(Units.MillimolesPerLiter.shorthand)
                 }
                 
                 Spacer(Modifier.weight(1f))
@@ -1107,7 +1108,7 @@ class FollowUI : DefaultLifecycleObserver {
                         Instant.now() - 1.minutes,
                         Instant.now() - 2.minutes,
                         Instant.now() - 1.5.days,
-                        Trend.constant
+                        Trend.Constant
                     )
                 )
             )
@@ -1154,7 +1155,7 @@ class FollowUI : DefaultLifecycleObserver {
                     lastBolus = lastBolus,
                     lastCarbEntry = lastEntry,
                     glucoseChange = (-5).mgdl,
-                    trend = rapidRise,
+                    trend = RapidRise,
                     warningType = Warning,
                     lastUpdate = lastUpdate
                 ),
@@ -1164,7 +1165,7 @@ class FollowUI : DefaultLifecycleObserver {
         }
     }
     
-    private fun Context.handleError(state: MutableState<Exception?>) {
+    private fun Context.handleError(state: MutableState<Throwable?>) {
         var value by state
         if (value is FatalDataException) {
             future?.cancel(true)

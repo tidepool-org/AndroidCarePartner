@@ -31,7 +31,6 @@ class EnvironmentTypeAdapter : TypeAdapterFactory {
         override fun write(out: JsonWriter, value: Environment) {
             out.beginObject()
             out.name("envCode").value(value.envCode)
-            out.name("url").value(value.url.toString())
             out.name("auth").beginObject()
             out.name("url").value(value.auth.url.toString())
             out.endObject()
@@ -40,13 +39,11 @@ class EnvironmentTypeAdapter : TypeAdapterFactory {
         
         override fun read(reader: JsonReader): Environment {
             var envCode: String? = null
-            var url: URL? = null
             var authUrl: URL? = null
             reader.beginObject()
-            while (envCode == null || url == null || authUrl == null) {
+            while (envCode == null || authUrl == null) {
                 when (reader.nextName()) {
                     "envCode" -> envCode = reader.nextString()
-                    "url"     -> url = URL(reader.nextString())
                     
                     "auth"    -> {
                         reader.beginObject()
@@ -70,11 +67,9 @@ class EnvironmentTypeAdapter : TypeAdapterFactory {
             }
             reader.endObject()
             Log.v(TAG, "envCode: $envCode")
-            Log.v(TAG, "url: $url")
             Log.v(TAG, "authUrl: $authUrl")
             return object : Environment {
                 override val envCode: String = envCode
-                override val url: URL = url
                 override val auth: AuthenticationServer = object : AuthenticationServer {
                     override val url: URL = authUrl
                 }
